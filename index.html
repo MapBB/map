@@ -11,7 +11,7 @@
     /* Drawer style */
     #drawer {
       position: fixed;
-      top: -200px;
+      top: -250px; /* Adjusted to hide the new checkbox row */
       left: 0;
       width: 100%;
       background: white;
@@ -26,7 +26,7 @@
 
     #drawer.open { top: 0; }
 
-    #drawer input {
+    #drawer input[type="text"] {
       width: 100%;
       padding: 14px;
       font-size: 20px;
@@ -51,7 +51,24 @@
       background: white;
     }
 
-    /* --- START: ARROW BUTTON STYLE CHANGES --- */
+    /* --- START: NEW CSS FOR CHECKBOX --- */
+    .checkboxRow {
+      display: flex;
+      align-items: center;
+      margin-top: 12px;
+      gap: 8px; /* Space between checkbox and label */
+      font-size: 14px;
+      color: #333;
+      cursor: pointer;
+    }
+
+    .checkboxRow input[type="checkbox"] {
+      /* Reset some default input styles for the checkbox */
+      width: auto;
+      margin: 0;
+    }
+    /* --- END: NEW CSS FOR CHECKBOX --- */
+    
     #toggleDrawerBtn {
       position: fixed;
       top: 0;
@@ -59,44 +76,31 @@
       transform: translateX(-50%);
       z-index: 1001;
       transition: top 0.3s ease;
-      
-      /* Reset default button styles */
       background: rgba(255, 255, 255, 0.8);
       border: 1px solid #ccc;
       cursor: pointer;
-      
-      /* Make it a circle */
       width: 32px;
       height: 32px;
       border-radius: 50%;
-      
-      /* Center the arrow inside */
       display: flex;
       justify-content: center;
       align-items: center;
     }
     
-    /* Create the arrow shape using a pseudo-element */
     #toggleDrawerBtn::before {
       content: '';
       width: 0;
       height: 0;
-      /* Creates a triangle pointing down */
       border-left: 7px solid transparent;
       border-right: 7px solid transparent;
-      border-top: 9px solid #007bff; /* Blue arrow */
-      
-      /* Add smooth rotation effect */
+      border-top: 9px solid #007bff;
       transition: transform 0.3s ease;
     }
 
-    /* When the button has the 'arrow-up' class, rotate the arrow */
     #toggleDrawerBtn.arrow-up::before {
       transform: rotate(180deg);
     }
-    /* --- END: ARROW BUTTON STYLE CHANGES --- */
 
-    /* Current location marker styles */
     .location-dot {
       width: 10px;
       height: 10px;
@@ -125,7 +129,11 @@
     <button id="addMarkerBtn">Add Marker</button>
     <button id="clearMarkersBtn">Clear All Markers</button>
   </div>
-</div>
+  <label class="checkboxRow">
+    <input type="checkbox" id="keepOpenCheckbox">
+    Keep open after adding
+  </label>
+  </div>
 
 <button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
 
@@ -137,13 +145,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 
 const drawer = document.getElementById('drawer');
 const toggleBtn = document.getElementById('toggleDrawerBtn');
 
-/**
- * Updates the toggle button's state and position.
- */
 function updateToggleButton() {
   const isOpen = drawer.classList.contains('open');
-  
-  // --- CHANGE: Instead of text, toggle a class for the arrow's rotation ---
   toggleBtn.classList.toggle('arrow-up', isOpen);
 
   if (isOpen) {
@@ -153,25 +156,21 @@ function updateToggleButton() {
   }
 }
 
-// Handle clicking the toggle button
 toggleBtn.addEventListener('click', () => {
   drawer.classList.toggle('open');
   updateToggleButton();
 });
 
-// Update button position on resize
 window.addEventListener('resize', () => {
     if (drawer.classList.contains('open')) {
         updateToggleButton();
     }
 });
 
-// Set the initial state when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(updateToggleButton, 100);
 });
 
-// Current location marker
 let currentMarker = null;
 let lastLat = null, lastLon = null;
 let userMarkers = [];
@@ -199,7 +198,7 @@ navigator.geolocation.watchPosition(
   { enableHighAccuracy: true }
 );
 
-// Add marker from input
+// --- START: MODIFIED Add Marker LOGIC ---
 document.getElementById('addMarkerBtn').addEventListener('click', () => {
   const input = document.getElementById('coordsInput');
   const val = input.value.trim();
@@ -211,22 +210,30 @@ document.getElementById('addMarkerBtn').addEventListener('click', () => {
   userMarkers.push(marker);
   map.panTo([lat, lon], {animate:true, duration:1});
   input.value = '';
-});
 
-// Clear markers
+  // Check the state of the checkbox
+  const keepOpenCheckbox = document.getElementById('keepOpenCheckbox');
+  
+  // If the checkbox is NOT checked, close the drawer
+  if (!keepOpenCheckbox.checked) {
+    drawer.classList.remove('open');
+    // We must call this function to update the arrow button's position and direction
+    updateToggleButton();
+  }
+});
+// --- END: MODIFIED Add Marker LOGIC ---
+
 document.getElementById('clearMarkersBtn').addEventListener('click', () => {
   userMarkers.forEach(m=>map.removeLayer(m));
   userMarkers = [];
 });
 
-// Double click to add marker
 map.on('dblclick', e => {
   const { lat, lng } = e.latlng;
   const marker = L.marker([lat, lng]).addTo(map).bindPopup(`Marker: ${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
   userMarkers.push(marker);
 });
 
-// Wake lock to keep screen on
 let wakeLock = null;
 async function requestWakeLock() {
   try {
