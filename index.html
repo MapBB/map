@@ -32,21 +32,23 @@
     padding: 8px;
   }
 
-  #buttonRow {
-    display: flex;
-    gap: 8px;
-    width: 100%;           /* full width row */
-  }
+ #buttonRow {
+  display: flex;
+  gap: 8px;
+  width: 100%;           /* full width */
+  background: white;      /* match input box */
+  border-radius: 6px;     /* match input box */
+  padding: 8px;           /* optional for spacing inside row */
+  box-sizing: border-box; /* ensures full width */
+}
+#buttonRow button {
+  flex: 1;               /* share space equally */
+  font-size: 16px;
+  padding: 10px;
+  margin: 0;             /* remove extra margin */
+  border-radius: 4px;    /* slightly smaller radius inside row */
+}
 
-  #buttonRow button {
-    flex: 1;               /* buttons share row space equally */
-    font-size: 16px;
-    padding: 10px;
-    background: white;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    cursor: pointer;
-  }
 
   @media (max-width: 900px) {
     #controls input {
