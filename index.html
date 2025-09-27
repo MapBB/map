@@ -8,20 +8,20 @@
   html, body { margin:0; height:100%; width:100%; font-family:sans-serif; }
   #map { height:100vh; width:100%; }
 
-  /* Controls panel at bottom */
+  /* Controls panel at top */
   #controls {
     position: fixed;
-    bottom: 12px;
+    top: 12px;
     left: 50%;
     transform: translateX(-50%);
     background: white;
-    padding: 12px;          /* even spacing inside */
+    padding: 12px;         
     border-radius: 10px;    
     box-shadow: 0 0 6px rgba(0,0,0,0.3);
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    gap: 12px;               /* space between input and buttons */
+    gap: 12px;              
     width: 90%;
     max-width: 400px;
     box-sizing: border-box;
@@ -29,7 +29,7 @@
 
   #controls input {
     width: 100%;
-    padding: 12px;           /* internal padding */
+    padding: 12px;          
     font-size: 18px;
     border-radius: 6px;
     border: 1px solid #ccc;
@@ -178,18 +178,6 @@ map.on("dblclick", e => {
     .bindPopup(`Marker: ${lat}, ${lng}`)
     .openPopup();
   userMarkers.push(marker);
-});
-
-// Move controls above keyboard on mobile
-const controls = document.getElementById('controls');
-const input = document.getElementById('coordsInput');
-
-input.addEventListener('focus', () => {
-  controls.style.bottom = '250px'; // move above keyboard
-});
-
-input.addEventListener('blur', () => {
-  controls.style.bottom = '12px'; // restore
 });
 
 // Screen Wake Lock
