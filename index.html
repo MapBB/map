@@ -24,18 +24,19 @@
     margin-right: 4px; 
   }
 
-  /* Mobile: increase input size even more */
-  @media (max-width: 600px) {
-    #controls input {
-      width: 280px;   /* much wider input on mobile */
-      font-size: 18px; /* larger text */
-      padding: 6px;   /* more comfortable tapping */
-    }
-    #controls button {
-      font-size: 16px;
-      padding: 6px 10px;
-    }
+  /* Mobile: much larger input */
+@media (max-width: 600px) {
+  #controls input {
+    width: 80vw;     /* take up 80% of screen width */
+    font-size: 20px; /* larger text */
+    padding: 10px;   /* bigger tap target */
   }
+  #controls button {
+    font-size: 18px;
+    padding: 10px 14px;
+  }
+}
+
 
   /* Current location marker style */
   .location-dot {
