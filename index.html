@@ -8,45 +8,46 @@
   html, body { margin:0; height:100%; width:100%; font-family:sans-serif; }
   #map { height:100vh; width:100%; }
 
-  #controls {
-    position: fixed;
-    bottom: env(safe-area-inset-bottom, 10px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: white;
-    padding: 10px;
-    border-radius: 6px;
-    box-shadow: 0 0 6px rgba(0,0,0,0.3);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 90%;
-    max-width: 400px;
-    transition: bottom 0.3s;
-  }
-
-  #controls input {
-    width: 90%;
-    font-size: 18px;
-    padding: 8px;
-  }
-
- #buttonRow {
+ #controls {
+  position: fixed;
+  bottom: env(safe-area-inset-bottom, 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 12px;          /* even space inside */
+  border-radius: 10px;     /* rounded corners for the whole panel */
+  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+  z-index: 1000;
   display: flex;
-  gap: 8px;
-  width: 100%;           /* full width */
-  background: white;      /* match input box */
-  border-radius: 6px;     /* match input box */
-  padding: 8px;           /* optional for spacing inside row */
-  box-sizing: border-box; /* ensures full width */
+  flex-direction: column;
+  gap: 12px;               /* space between input and buttons */
+  width: 90%;
+  max-width: 400px;
+  box-sizing: border-box;
 }
+
+#controls input {
+  width: 100%;
+  padding: 12px;           /* even padding inside input */
+  font-size: 18px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+#buttonRow {
+  display: flex;
+  gap: 12px;
+  width: 100%;             /* full width */
+}
+
 #buttonRow button {
-  flex: 1;               /* share space equally */
+  flex: 1;                  /* share space equally */
+  padding: 12px;
   font-size: 16px;
-  padding: 10px;
-  margin: 0;             /* remove extra margin */
-  border-radius: 4px;    /* slightly smaller radius inside row */
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
 }
 
 
