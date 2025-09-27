@@ -9,8 +9,8 @@
   #map { height:100vh; width:100%; }
 
   #controls {
-    position: absolute;
-    bottom: 10px;    /* ⬇ stick to bottom */
+    position: fixed; /* fixed so it can move above keyboard */
+    bottom: env(safe-area-inset-bottom, 10px);
     left: 50%;
     transform: translateX(-50%);
     background: white;
@@ -19,10 +19,11 @@
     box-shadow: 0 0 6px rgba(0,0,0,0.3);
     z-index: 1000;
     display: flex;
-    flex-direction: column;   /* stack input then button row */
+    flex-direction: column;
     gap: 8px;
     width: 90%;
     max-width: 400px;
+    transition: bottom 0.3s; /* smooth move when keyboard appears */
   }
 
   #controls input {
@@ -37,12 +38,11 @@
   }
 
   #buttonRow button {
-    flex: 1;   /* make buttons equal width */
+    flex: 1;
     font-size: 16px;
     padding: 10px;
   }
 
-  /* On mobile: make everything bigger */
   @media (max-width: 900px) {
     #controls input {
       font-size: 22px;
@@ -96,8 +96,9 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // Current location marker
 let currentMarker = null;
 let lastLat = null, lastLon = null;
-let userMarkers = []; // store manually added markers
+let userMarkers = [];
 
+// Geolocation watch
 navigator.geolocation.watchPosition(
   pos => {
     const lat = pos.coords.latitude;
@@ -126,7 +127,7 @@ navigator.geolocation.watchPosition(
           iconAnchor: [5, 5]
         })
       }).addTo(map);
-      map.setView([lat, lon], 15); // initial center
+      map.setView([lat, lon], 15);
     }
   },
   err => console.warn(err),
@@ -148,10 +149,10 @@ document.getElementById('addMarkerBtn').addEventListener('click', () => {
     .bindPopup(`Marker: ${lat}, ${lon}`)
     .openPopup();
 
-  userMarkers.push(marker); // store marker
+  userMarkers.push(marker);
   map.panTo([lat, lon], {animate: true, duration: 1});
 
-  // Clear input box after adding
+  // Clear input
   input.value = "";
 });
 
@@ -171,6 +172,18 @@ map.on("dblclick", e => {
   userMarkers.push(marker);
 });
 
+// Move controls above keyboard on mobile
+const controls = document.getElementById('controls');
+const input = document.getElementById('coordsInput');
+
+input.addEventListener('focus', () => {
+  controls.style.bottom = '250px'; // move up above keyboard
+});
+
+input.addEventListener('blur', () => {
+  controls.style.bottom = '10px'; // reset
+});
+
 // Screen Wake Lock
 let wakeLock = null;
 
@@ -178,32 +191,14 @@ async function requestWakeLock() {
   try {
     if ('wakeLock' in navigator) {
       wakeLock = await navigator.wakeLock.request('screen');
-      console.log('Screen Wake Lock active');
-      wakeLock.addEventListener('release', () => {
-        console.log('Screen Wake Lock released');
-      });
-    } else {
-      console.warn('Wake Lock API not supported in this browser.');
+      wakeLock.addEventListener('release', () => {});
     }
-  } catch (err) {
-    console.error(`Failed to acquire wake lock: ${err.message}`);
-  }
+  } catch (err) { console.error(err); }
 }
 
-// Request initially
 requestWakeLock();
-
-// Reapply every 120 seconds
-setInterval(() => {
-  if (!wakeLock) requestWakeLock();
-}, 120000);
-
-// Re-request if tab visibility changes
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && !wakeLock) {
-    requestWakeLock();
-  }
-});
+setInterval(() => { if(!wakeLock) requestWakeLock(); }, 120000);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && !wakeLock) requestWakeLock(); });
 </script>
 </body>
 </html>
