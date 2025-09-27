@@ -2,84 +2,98 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Leaflet Location & Marker App</title>
+<title>Leaflet Location & Marker App with Top Drawer</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <style>
-  html, body { margin:0; height:100%; width:100%; font-family:sans-serif; }
-  #map { height:100vh; width:100%; }
+html, body { margin:0; height:100%; width:100%; font-family:sans-serif; }
+#map { height:100vh; width:100%; }
 
-  /* Controls panel at top */
-  #controls {
-    position: fixed;
-    top: 0;                 /* stick to top */
-    left: 50%;
-    transform: translateX(-50%);
-    background: white;
-    padding: 14px 14px 14px 14px; 
-    border-radius: 10px;
-    box-shadow: 0 0 6px rgba(0,0,0,0.3);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: 95%;
-    max-width: 420px;
-    box-sizing: border-box;
-  }
+/* Drawer style */
+#drawer {
+  position: fixed;
+  top: -180px; /* hidden above screen */
+  left: 0;
+  width: 100%;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  z-index: 1000;
+  transition: top 0.3s ease;
+  padding: 14px;
+  box-sizing: border-box;
+}
 
-  #controls input {
-    width: 100%;
-    padding: 14px;          
-    font-size: 20px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    box-sizing: border-box;
-  }
+#drawer.open { top: 0; }
 
-  #buttonRow {
-    display: flex;
-    gap: 12px;
-    width: 100%;
-  }
+#drawer input {
+  width: 100%;
+  padding: 14px;
+  font-size: 20px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
 
-  #buttonRow button {
-    flex: 1;
-    padding: 14px;
-    font-size: 18px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    cursor: pointer;
-    background: white;
-  }
+#drawer .buttonRow {
+  display: flex;
+  gap: 12px;
+}
 
-  /* Current location marker style */
-  .location-dot {
-    width: 10px;
-    height: 10px;
-    background: red;
-    border-radius: 50%;
-  }
+#drawer .buttonRow button {
+  flex: 1;
+  padding: 14px;
+  font-size: 18px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  background: white;
+}
 
-  .location-dot.flash {
-    animation: flash 0.8s ease-out 2;
-  }
+/* Toggle button at bottom of drawer */
+#toggleDrawerBtn {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid #888;
+  background: #f0f0f0;
+  cursor: pointer;
+}
 
-  @keyframes flash {
-    0%   { opacity: 1; transform: scale(1); }
-    50%  { opacity: 0.3; transform: scale(1.6); }
-    100% { opacity: 1; transform: scale(1); }
-  }
+/* Current location marker */
+.location-dot {
+  width: 10px;
+  height: 10px;
+  background: red;
+  border-radius: 50%;
+}
+
+.location-dot.flash {
+  animation: flash 0.8s ease-out 2;
+}
+
+@keyframes flash {
+  0%   { opacity: 1; transform: scale(1); }
+  50%  { opacity: 0.3; transform: scale(1.6); }
+  100% { opacity: 1; transform: scale(1); }
+}
 </style>
 </head>
 <body>
 <div id="map"></div>
 
-<div id="controls">
+<div id="drawer">
   <input type="text" id="coordsInput" placeholder="lat, lon">
-  <div id="buttonRow">
+  <div class="buttonRow">
     <button id="addMarkerBtn">Add Marker</button>
     <button id="clearMarkersBtn">Clear All Markers</button>
   </div>
+  <button id="toggleDrawerBtn">Hide</button>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -87,16 +101,21 @@
 const map = L.map('map').setView([0,0], 2);
 
 // OSM tiles
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19
-}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+// Drawer toggle
+const drawer = document.getElementById('drawer');
+const toggleBtn = document.getElementById('toggleDrawerBtn');
+toggleBtn.addEventListener('click', () => {
+  drawer.classList.toggle('open');
+  toggleBtn.textContent = drawer.classList.contains('open') ? 'Hide' : 'Show';
+});
 
 // Current location marker
 let currentMarker = null;
 let lastLat = null, lastLon = null;
 let userMarkers = [];
 
-// Geolocation watch
 navigator.geolocation.watchPosition(
   pos => {
     const lat = pos.coords.latitude;
@@ -110,20 +129,10 @@ navigator.geolocation.watchPosition(
 
     if (currentMarker) {
       currentMarker.setLatLng([lat, lon]);
-      currentMarker.setIcon(L.divIcon({
-        className: '',
-        html: dotHtml,
-        iconSize: [10, 10],
-        iconAnchor: [5, 5]
-      }));
+      currentMarker.setIcon(L.divIcon({ className:'', html: dotHtml, iconSize:[10,10], iconAnchor:[5,5]}));
     } else {
       currentMarker = L.marker([lat, lon], {
-        icon: L.divIcon({
-          className: '',
-          html: dotHtml,
-          iconSize: [10, 10],
-          iconAnchor: [5, 5]
-        })
+        icon: L.divIcon({ className:'', html: dotHtml, iconSize:[10,10], iconAnchor:[5,5] })
       }).addTo(map);
       map.setView([lat, lon], 15);
     }
@@ -132,59 +141,47 @@ navigator.geolocation.watchPosition(
   { enableHighAccuracy: true }
 );
 
-// Add marker from input
+// Add marker
 document.getElementById('addMarkerBtn').addEventListener('click', () => {
   const input = document.getElementById('coordsInput');
   const val = input.value.trim();
-  if (!val.includes(',')) return alert('Enter coordinates as lat, lon');
-
-  const parts = val.split(',').map(p => parseFloat(p.trim()));
-  if (parts.length !== 2 || parts.some(isNaN)) return alert('Invalid numbers');
-
+  if(!val.includes(',')) return alert('Enter coordinates as lat, lon');
+  const parts = val.split(',').map(p=>parseFloat(p.trim()));
+  if(parts.length!==2 || parts.some(isNaN)) return alert('Invalid numbers');
   const [lat, lon] = parts;
-  const marker = L.marker([lat, lon], {title: `Marker (${lat}, ${lon})`})
-    .addTo(map)
-    .bindPopup(`Marker: ${lat}, ${lon}`)
-    .openPopup();
-
+  const marker = L.marker([lat, lon]).addTo(map).bindPopup(`Marker: ${lat}, ${lon}`).openPopup();
   userMarkers.push(marker);
-  map.panTo([lat, lon], {animate: true, duration: 1});
-
-  input.value = ""; // clear input
+  map.panTo([lat, lon], {animate:true, duration:1});
+  input.value = '';
 });
 
-// Clear all user-added markers
+// Clear markers
 document.getElementById('clearMarkersBtn').addEventListener('click', () => {
-  userMarkers.forEach(m => map.removeLayer(m));
+  userMarkers.forEach(m=>map.removeLayer(m));
   userMarkers = [];
 });
 
-// Double-click to add marker
-map.on("dblclick", e => {
+// Double click to add marker
+map.on('dblclick', e => {
   const { lat, lng } = e.latlng;
-  const marker = L.marker([lat, lng], {title: `Marker (${lat}, ${lng})`})
-    .addTo(map)
-    .bindPopup(`Marker: ${lat}, ${lng}`)
-    .openPopup();
+  const marker = L.marker([lat, lng]).addTo(map).bindPopup(`Marker: ${lat}, ${lng}`).openPopup();
   userMarkers.push(marker);
 });
 
-// Screen Wake Lock
+// Wake lock
 let wakeLock = null;
 async function requestWakeLock() {
   try {
-    if ('wakeLock' in navigator) {
+    if('wakeLock' in navigator) {
       wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => {});
+      wakeLock.addEventListener('release', ()=>{});
     }
-  } catch (err) { console.error(err); }
+  } catch(err){ console.error(err); }
 }
-
 requestWakeLock();
-setInterval(() => { if(!wakeLock) requestWakeLock(); }, 120000);
-document.addEventListener('visibilitychange', () => { 
-  if(document.visibilityState==='visible' && !wakeLock) requestWakeLock(); 
-});
+setInterval(()=>{if(!wakeLock) requestWakeLock();}, 120000);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && !wakeLock) requestWakeLock(); });
+
 </script>
 </body>
 </html>
