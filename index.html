@@ -5,110 +5,170 @@
 <title>Leaflet Location & Marker App with Top Drawer</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <style>
-html, body { margin:0; height:100%; width:100%; font-family:sans-serif; }
-#map { height:100vh; width:100%; }
+    html, body { margin:0; height:100%; width:100%; font-family:sans-serif; }
+    #map { height:100vh; width:100%; }
 
-/* Drawer style */
-#drawer {
-  position: fixed;
-  top: -180px; /* hidden above screen */
-  left: 0;
-  width: 100%;
-  background: white;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-  z-index: 1000;
-  transition: top 0.3s ease;
-  padding: 14px;
-  box-sizing: border-box;
-}
+    /* Drawer style */
+    #drawer {
+      position: fixed;
+      top: -200px;
+      left: 0;
+      width: 100%;
+      background: white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      z-index: 1000;
+      transition: top 0.3s ease;
+      padding: 14px;
+      box-sizing: border-box;
+    }
 
-#drawer.open { top: 0; }
+    #drawer.open { top: 0; }
 
-#drawer input {
-  width: 100%;
-  padding: 14px;
-  font-size: 20px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  box-sizing: border-box;
-  margin-bottom: 12px;
-}
+    #drawer input {
+      width: 100%;
+      padding: 14px;
+      font-size: 20px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      margin-bottom: 12px;
+    }
 
-#drawer .buttonRow {
-  display: flex;
-  gap: 12px;
-}
+    #drawer .buttonRow {
+      display: flex;
+      gap: 12px;
+    }
 
-#drawer .buttonRow button {
-  flex: 1;
-  padding: 14px;
-  font-size: 18px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  cursor: pointer;
-  background: white;
-}
+    #drawer .buttonRow button {
+      flex: 1;
+      padding: 14px;
+      font-size: 18px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      background: white;
+    }
 
-/* Toggle button at bottom of drawer */
-#toggleDrawerBtn {
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 6px 12px;
-  font-size: 14px;
-  border-radius: 6px;
-  border: 1px solid #888;
-  background: #f0f0f0;
-  cursor: pointer;
-}
+    /* --- START: ARROW BUTTON STYLE CHANGES --- */
+    #toggleDrawerBtn {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1001;
+      transition: top 0.3s ease;
+      
+      /* Reset default button styles */
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid #ccc;
+      cursor: pointer;
+      
+      /* Make it a circle */
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      
+      /* Center the arrow inside */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    /* Create the arrow shape using a pseudo-element */
+    #toggleDrawerBtn::before {
+      content: '';
+      width: 0;
+      height: 0;
+      /* Creates a triangle pointing down */
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 9px solid #007bff; /* Blue arrow */
+      
+      /* Add smooth rotation effect */
+      transition: transform 0.3s ease;
+    }
 
-/* Current location marker */
-.location-dot {
-  width: 10px;
-  height: 10px;
-  background: red;
-  border-radius: 50%;
-}
+    /* When the button has the 'arrow-up' class, rotate the arrow */
+    #toggleDrawerBtn.arrow-up::before {
+      transform: rotate(180deg);
+    }
+    /* --- END: ARROW BUTTON STYLE CHANGES --- */
 
-.location-dot.flash {
-  animation: flash 0.8s ease-out 2;
-}
+    /* Current location marker styles */
+    .location-dot {
+      width: 10px;
+      height: 10px;
+      background: red;
+      border-radius: 50%;
+    }
 
-@keyframes flash {
-  0%   { opacity: 1; transform: scale(1); }
-  50%  { opacity: 0.3; transform: scale(1.6); }
-  100% { opacity: 1; transform: scale(1); }
-}
+    .location-dot.flash {
+      animation: flash 0.8s ease-out 2;
+    }
+
+    @keyframes flash {
+      0%   { opacity: 1; transform: scale(1); }
+      50%  { opacity: 0.3; transform: scale(1.6); }
+      100% { opacity: 1; transform: scale(1); }
+    }
 </style>
 </head>
 <body>
+
 <div id="map"></div>
 
-<div id="drawer">
+<div id="drawer" class="open">
   <input type="text" id="coordsInput" placeholder="lat, lon">
   <div class="buttonRow">
     <button id="addMarkerBtn">Add Marker</button>
     <button id="clearMarkersBtn">Clear All Markers</button>
   </div>
-  <button id="toggleDrawerBtn">Hide</button>
 </div>
+
+<button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
 const map = L.map('map').setView([0,0], 2);
-
-// OSM tiles
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-// Drawer toggle
 const drawer = document.getElementById('drawer');
 const toggleBtn = document.getElementById('toggleDrawerBtn');
+
+/**
+ * Updates the toggle button's state and position.
+ */
+function updateToggleButton() {
+  const isOpen = drawer.classList.contains('open');
+  
+  // --- CHANGE: Instead of text, toggle a class for the arrow's rotation ---
+  toggleBtn.classList.toggle('arrow-up', isOpen);
+
+  if (isOpen) {
+    toggleBtn.style.top = `${drawer.offsetHeight}px`;
+  } else {
+    toggleBtn.style.top = '0px';
+  }
+}
+
+// Handle clicking the toggle button
 toggleBtn.addEventListener('click', () => {
   drawer.classList.toggle('open');
-  toggleBtn.textContent = drawer.classList.contains('open') ? 'Hide' : 'Show';
+  updateToggleButton();
+});
+
+// Update button position on resize
+window.addEventListener('resize', () => {
+    if (drawer.classList.contains('open')) {
+        updateToggleButton();
+    }
+});
+
+// Set the initial state when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(updateToggleButton, 100);
 });
 
 // Current location marker
@@ -120,11 +180,9 @@ navigator.geolocation.watchPosition(
   pos => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
-
     const moved = lastLat !== lat || lastLon !== lon;
     lastLat = lat;
     lastLon = lon;
-
     const dotHtml = `<div class="location-dot${moved ? ' flash' : ''}"></div>`;
 
     if (currentMarker) {
@@ -141,7 +199,7 @@ navigator.geolocation.watchPosition(
   { enableHighAccuracy: true }
 );
 
-// Add marker
+// Add marker from input
 document.getElementById('addMarkerBtn').addEventListener('click', () => {
   const input = document.getElementById('coordsInput');
   const val = input.value.trim();
@@ -164,11 +222,11 @@ document.getElementById('clearMarkersBtn').addEventListener('click', () => {
 // Double click to add marker
 map.on('dblclick', e => {
   const { lat, lng } = e.latlng;
-  const marker = L.marker([lat, lng]).addTo(map).bindPopup(`Marker: ${lat}, ${lng}`).openPopup();
+  const marker = L.marker([lat, lng]).addTo(map).bindPopup(`Marker: ${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
   userMarkers.push(marker);
 });
 
-// Wake lock
+// Wake lock to keep screen on
 let wakeLock = null;
 async function requestWakeLock() {
   try {
