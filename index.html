@@ -9,7 +9,7 @@
   #map { height:100vh; width:100%; }
 
   #controls {
-    position: fixed; /* fixed so it can move above keyboard */
+    position: fixed;
     bottom: env(safe-area-inset-bottom, 10px);
     left: 50%;
     transform: translateX(-50%);
@@ -23,7 +23,7 @@
     gap: 8px;
     width: 90%;
     max-width: 400px;
-    transition: bottom 0.3s; /* smooth move when keyboard appears */
+    transition: bottom 0.3s;
   }
 
   #controls input {
@@ -35,12 +35,17 @@
   #buttonRow {
     display: flex;
     gap: 8px;
+    width: 100%;           /* full width row */
   }
 
   #buttonRow button {
-    flex: 1;
+    flex: 1;               /* buttons share row space equally */
     font-size: 16px;
     padding: 10px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    cursor: pointer;
   }
 
   @media (max-width: 900px) {
@@ -177,7 +182,7 @@ const controls = document.getElementById('controls');
 const input = document.getElementById('coordsInput');
 
 input.addEventListener('focus', () => {
-  controls.style.bottom = '250px'; // move up above keyboard
+  controls.style.bottom = '250px'; // move above keyboard
 });
 
 input.addEventListener('blur', () => {
