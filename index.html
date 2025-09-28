@@ -158,6 +158,7 @@
 <script>
 const map = L.map('map').setView([54.971793, -2.949397], 16);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+map.attributionControl.addAttribution("© KC 2025");
 
 const drawer = document.getElementById('drawer');
 const toggleBtn = document.getElementById('toggleDrawerBtn');
