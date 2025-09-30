@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Leaflet Map with Top Drawer & Red Arrow</title>
+<title>Leaflet Map with Top Drawer & Smooth Red Arrow</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
 html, body { height: 100%; margin: 0; font-family: sans-serif; }
@@ -201,12 +201,13 @@ L.Control.FollowMe = L.Control.extend({
 L.control.followMe = function(opts){ return new L.Control.FollowMe(opts); }
 L.control.followMe({position:'topleft'}).addTo(map);
 
-// Lat/Lon with speed >3 mph
+// Lat/Lon with speed >3 mph and smooth arrow movement
 let currentMarker = null;
 const posBar = document.getElementById('positionBar');
 let firstFix = true;
-let currentAngle = 0;
 let lastLat = null, lastLon = null, lastTime = null;
+let lastX = null, lastY = null;
+let currentAngle = 0;
 
 function createArrowIcon() {
   return L.divIcon({
@@ -218,10 +219,9 @@ function createArrowIcon() {
     iconAnchor: [12,12]
   });
 }
-function lerpAngle(a, b, t) {
-  const diff = ((b - a + 540) % 360) - 180;
-  return a + diff * t;
-}
+
+function lerp(a,b,t){ return a+(b-a)*t; }
+function lerpAngle(a,b,t){ const diff=((b-a+540)%360)-180; return a+diff*t; }
 
 navigator.geolocation.watchPosition(
   pos => {
@@ -232,23 +232,26 @@ navigator.geolocation.watchPosition(
 
     // Speed calculation
     let speedText = '';
-    if (lastLat !== null && lastLon !== null && lastTime !== null) {
+    if(lastLat!==null && lastLon!==null && lastTime!==null){
       const distance = map.distance([lastLat,lastLon],[lat,lon]);
-      const timeDiff = (now - lastTime)/1000;
-      const speedMps = distance / timeDiff;
-      const speedMph = speedMps * 2.23694;
-      if (speedMph > 15) speedText = ` | Speed: ${speedMph.toFixed(1)} mph`;
+      const timeDiff = (now-lastTime)/1000;
+      const speedMps = distance/timeDiff;
+      const speedMph = speedMps*2.23694;
+      if(speedMph>3) speedText=` | Speed: ${speedMph.toFixed(1)} mph`;
     }
     lastLat = lat; lastLon = lon; lastTime = now;
 
     posBar.textContent = `Lat: ${lat.toFixed(5)} , Lon: ${lon.toFixed(5)}${speedText}`;
 
-    // Arrow marker
+    // Smooth movement
     if(!currentMarker){
-      currentMarker = L.marker([lat, lon], {icon: createArrowIcon(), rotationAngle: heading}).addTo(map);
+      currentMarker = L.marker([lat,lon], {icon:createArrowIcon(), rotationAngle:heading}).addTo(map);
       currentAngle = heading;
     } else {
-      currentMarker.setLatLng([lat, lon]);
+      const latLng = currentMarker.getLatLng();
+      const newLat = lerp(latLng.lat, lat, 0.2);
+      const newLng = lerp(latLng.lng, lon, 0.2);
+      currentMarker.setLatLng([newLat,newLng]);
       currentAngle = lerpAngle(currentAngle, heading, 0.2);
       currentMarker.setRotationAngle(currentAngle);
     }
