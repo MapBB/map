@@ -283,6 +283,11 @@ document.getElementById('clearMarkersBtn').addEventListener('click', () => {
   userMarkers.forEach(m=>map.removeLayer(m));
   userMarkers.length = 0;
 });
+map.on('dblclick', e => {
+  const { lat, lng } = e.latlng;
+  const marker = L.marker([lat, lng]).addTo(map).bindPopup(`Marker: ${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
+  userMarkers.push(marker);
+});
 
 // --- Wake Lock every 12 seconds ---
 let wakeLock = null;
