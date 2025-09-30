@@ -237,7 +237,7 @@ navigator.geolocation.watchPosition(
       const timeDiff = (now - lastTime)/1000;
       const speedMps = distance / timeDiff;
       const speedMph = speedMps * 2.23694;
-      if (speedMph > 3) speedText = ` | Speed: ${speedMph.toFixed(1)} mph`;
+      if (speedMph > 15) speedText = ` | Speed: ${speedMph.toFixed(1)} mph`;
     }
     lastLat = lat; lastLon = lon; lastTime = now;
 
