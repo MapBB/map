@@ -277,6 +277,37 @@ document.getElementById('clearMarkersBtn').addEventListener('click', () => {
   userMarkers.forEach(m=>map.removeLayer(m));
   userMarkers.length = 0;
 });
+let wakeLock = null;
+
+// Request wake lock
+async function enableWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => {
+                console.log('Wake lock released');
+            });
+        }
+    } catch (err) {
+        console.error('Wake Lock error:', err);
+    }
+}
+
+// Initial request
+enableWakeLock();
+
+// Refresh every 12 seconds
+setInterval(() => {
+    if (!wakeLock) enableWakeLock();
+}, 12000); // 12,000 ms = 12 seconds
+
+// Re-request when tab becomes visible
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !wakeLock) {
+        enableWakeLock();
+    }
+});
+
 </script>
 </body>
 </html>
