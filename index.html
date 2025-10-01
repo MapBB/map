@@ -146,13 +146,18 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
     <button id="addMarkerBtn">Add Marker</button>
     <button id="clearMarkersBtn">Clear All Markers</button>
   </div>
-  <label class="checkboxRow">
-    <input type="checkbox" id="keepOpenCheckbox"> Keep open after adding
-  </label>
-  <label class="checkboxRow">
-    <input type="checkbox" id="freezeMapCheckbox"> Freeze map (stop marker updates)
-  </label>
+
+  <!-- Checkbox row with both options side by side -->
+  <div class="checkboxRow" style="justify-content: flex-start; gap: 20px;">
+    <label class="flex items-center gap-1">
+      <input type="checkbox" id="keepOpenCheckbox"> Keep open after adding
+    </label>
+    <label class="flex items-center gap-1">
+      <input type="checkbox" id="freezeMapCheckbox"> Freeze map
+    </label>
+  </div>
 </div>
+
 
 <button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
 <button id="fullscreenBtn">⛶</button>
