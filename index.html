@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Leaflet Map with Top Drawer & Smooth Red Arrow</title>
+<title>Leaflet Map Smooth Red Arrow</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
 html, body { height: 100%; margin: 0; font-family: sans-serif; }
@@ -149,6 +149,9 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   <label class="checkboxRow">
     <input type="checkbox" id="keepOpenCheckbox"> Keep open after adding
   </label>
+  <label class="checkboxRow">
+    <input type="checkbox" id="freezeMapCheckbox"> Freeze map (stop marker updates)
+  </label>
 </div>
 
 <button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
@@ -206,8 +209,12 @@ let currentMarker = null;
 const posBar = document.getElementById('positionBar');
 let firstFix = true;
 let lastLat = null, lastLon = null, lastTime = null;
-let lastX = null, lastY = null;
 let currentAngle = 0;
+let freezeMap = false;
+
+document.getElementById('freezeMapCheckbox').addEventListener('change', e => {
+  freezeMap = e.target.checked;
+});
 
 function createArrowIcon() {
   return L.divIcon({
@@ -243,21 +250,23 @@ navigator.geolocation.watchPosition(
 
     posBar.textContent = `Lat: ${lat.toFixed(5)} , Lon: ${lon.toFixed(5)}${speedText}`;
 
-    // Smooth movement
-    if(!currentMarker){
-      currentMarker = L.marker([lat,lon], {icon:createArrowIcon(), rotationAngle:heading}).addTo(map);
-      currentAngle = heading;
-    } else {
-      const latLng = currentMarker.getLatLng();
-      const newLat = lerp(latLng.lat, lat, 0.2);
-      const newLng = lerp(latLng.lng, lon, 0.2);
-      currentMarker.setLatLng([newLat,newLng]);
-      currentAngle = lerpAngle(currentAngle, heading, 0.2);
-      currentMarker.setRotationAngle(currentAngle);
-    }
+    if(!freezeMap){
+      // Smooth movement
+      if(!currentMarker){
+        currentMarker = L.marker([lat,lon], {icon:createArrowIcon(), rotationAngle:heading}).addTo(map);
+        currentAngle = heading;
+      } else {
+        const latLng = currentMarker.getLatLng();
+        const newLat = lerp(latLng.lat, lat, 0.2);
+        const newLng = lerp(latLng.lng, lon, 0.2);
+        currentMarker.setLatLng([newLat,newLng]);
+        currentAngle = lerpAngle(currentAngle, heading, 0.2);
+        currentMarker.setRotationAngle(currentAngle);
+      }
 
-    if(firstFix){ map.setView([lat, lon],16); firstFix=false; }
-    if(following) map.setView([lat, lon]);
+      if(firstFix){ map.setView([lat, lon],16); firstFix=false; }
+      if(following) map.setView([lat, lon]);
+    }
   },
   err => console.warn(err),
   { enableHighAccuracy: true }
