@@ -148,7 +148,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   </div>
 
   <!-- Checkbox row with both options side by side -->
-  <div class="checkboxRow" style="justify-content: flex-start; gap: 20px;">
+  <div class="checkboxRow" style="justify-content: flex-start; gap: 100px;">
     <label class="flex items-center gap-1">
       <input type="checkbox" id="keepOpenCheckbox"> Keep open after adding
     </label>
@@ -157,7 +157,6 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
     </label>
   </div>
 </div>
-
 
 <button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
 <button id="fullscreenBtn">⛶</button>
@@ -285,7 +284,16 @@ document.getElementById('addMarkerBtn').addEventListener('click', () => {
   const parts = input.split(',').map(p=>parseFloat(p.trim()));
   if(parts.length!==2 || parts.some(isNaN)) return alert('Invalid numbers');
   const [lat, lon] = parts;
-  const m = L.marker([lat, lon]).addTo(map).bindPopup(`Marker: ${lat}, ${lon}`).openPopup();
+  const m = L.marker([lat, lon], { draggable: true, autoPan: true })
+    .addTo(map)
+    .bindPopup(`Marker: ${lat}, ${lon}`)
+    .openPopup();
+
+  m.on('dragend', () => {
+    const pos = m.getLatLng();
+    m.setPopupContent(`Marker: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`);
+  });
+
   userMarkers.push(m);
   map.panTo([lat, lon]);
   document.getElementById('coordsInput').value = '';
@@ -299,7 +307,16 @@ document.getElementById('clearMarkersBtn').addEventListener('click', () => {
 });
 map.on('dblclick', e => {
   const { lat, lng } = e.latlng;
-  const marker = L.marker([lat, lng]).addTo(map).bindPopup(`Marker: ${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
+  const marker = L.marker([lat, lng], { draggable: true, autoPan: true })
+    .addTo(map)
+    .bindPopup(`Marker: ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+    .openPopup();
+
+  marker.on('dragend', () => {
+    const pos = marker.getLatLng();
+    marker.setPopupContent(`Marker: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`);
+  });
+
   userMarkers.push(marker);
 });
 
