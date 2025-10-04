@@ -349,6 +349,19 @@ map.on('dblclick',e=>{
   saveMarkers();
 });
 
+// Clear all markers + reset numbering
+document.getElementById('clearMarkersBtn').addEventListener('click',()=>{
+  if (confirm("Clear all markers and reset numbering?")) {
+    userMarkers.forEach(m=>map.removeLayer(m));
+    userMarkers.length=0;
+    localStorage.removeItem('markers');
+    markerCount = 0;
+    localStorage.setItem('markerCount', 0);
+    alert("All markers cleared. Numbering reset. Next marker will be #1.");
+  }
+});
+
+
 // --- Wake Lock every 12s ---
 let wakeLock=null;
 async function enableWakeLock(){
