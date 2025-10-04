@@ -12,7 +12,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
 /* Top Drawer */
 #drawer {
   position: fixed;
-  top: -300px;
+  top: -320px;
   left: 0;
   width: 100%;
   background: white;
@@ -130,6 +130,19 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   font-size: 14px;
   text-shadow: 1px 1px 2px white;
 }
+
+/* Follow Me button */
+.followme-btn {
+  background: white;
+  border: none;
+  width: 34px;
+  height: 34px;
+  font-size: 18px;
+  line-height: 32px;
+  text-align: center;
+  cursor: pointer;
+}
+.followme-btn:hover { background: #f0f0f0; }
 </style>
 </head>
 <body>
@@ -181,6 +194,24 @@ fullscreenBtn.onclick = () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(err=>console.warn(err));
   else document.exitFullscreen();
 };
+
+// Follow Me button
+let following = false;
+L.Control.FollowMe = L.Control.extend({
+  onAdd: function(map) {
+    const btn = L.DomUtil.create('button', 'leaflet-bar followme-btn');
+    btn.innerHTML = '📍';
+    btn.title = "Toggle Follow Me";
+    L.DomEvent.on(btn,'click', e => {
+      L.DomEvent.stopPropagation(e);
+      following = !following;
+      btn.style.background = following ? '#007bff' : 'white';
+    });
+    return btn;
+  }
+});
+L.control.followMe = function(opts){ return new L.Control.FollowMe(opts); }
+L.control.followMe({position:'topleft'}).addTo(map);
 
 // GPS + red arrow marker
 let currentMarker = null;
@@ -239,6 +270,7 @@ navigator.geolocation.watchPosition(
         currentAngle=lerpAngle(currentAngle,heading,0.2);
         currentMarker.setRotationAngle(currentAngle);
       }
+      if(following) map.setView([lat,lon]);
     }
   },
   err=>console.warn(err),
