@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Save Text As A File</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: blanchedalmond;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    button {
+      height: 70px;
+      width: 400px;
+      border-radius: 45px;
+      background-color: rgb(242, 196, 242);
+      font-size: x-large;
+      cursor: pointer;
+      border: none;
+    }
+
+    .gfg {
+      color: green;
+    }
+
+    textarea {
+      width: 70%;
+      height: 300px;
+      font-size: 16px;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1 class="gfg">Text Editor</h1>
+    <h3>Please enter the Stop Number,Lat,Lon, Example 1,54.971617,-2.949252</h3>
+
+    <textarea id="text-area" placeholder="Type something here..."></textarea>
+
+    <button id="btn-id">Click here to save the text</button>
+  </div>
+
+  <script>
+    const button = document.querySelector("#btn-id");
+    const textArea = document.querySelector("#text-area");
+
+    button.addEventListener("click", () => {
+      const valueInput = textArea.value.trim();
+
+      if (!valueInput) {
+        alert("Please enter some text before saving.");
+        return;
+      }
+
+      // Create blob
+      const blob = new Blob([valueInput], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+
+      // Create link
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "myTextFile.txt";  // ✅ proper filename
+      link.click();
+
+      // Cleanup
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+
+</html>
