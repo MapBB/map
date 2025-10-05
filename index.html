@@ -144,6 +144,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
     <button id="resetCounterBtn">Reset Numbering</button>
     <button id="openTextBtn">Text File Edit</button>
     <button id="chooseFileBtn">Load Route</button>
+	<button id="exportWptBtn">Export WPT</button>
     <input type="file" id="fileInput" accept=".txt,.csv" style="display:none;">
   </div>
   <div class="checkboxRow">
@@ -299,6 +300,22 @@ function deleteMarker(index){
   map.removeLayer(mObj.marker);
   userMarkers.splice(index,1);
 }
+
+// 🟢 NEW: Export WPTs to TXT file
+document.getElementById('exportWptBtn').addEventListener('click', ()=>{
+  if(userMarkers.length===0) return alert("No markers to export.");
+  let txt="Number,Latitude,Longitude\n";
+  userMarkers.forEach(mObj=>{
+    const ll=mObj.marker.getLatLng();
+    txt += `${mObj.number},${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}\n`;
+  });
+  const blob = new Blob([txt], {type:"text/plain"});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = "waypoints.txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 
 // Add Marker button
 document.getElementById('addMarkerBtn').addEventListener('click', ()=>{
