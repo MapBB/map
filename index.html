@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Leaflet Map with Numbered Markers</title>
+<title>Leaflet Map with Persistent Numbering & Import</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
 html, body { height: 100%; margin: 0; font-family: sans-serif; }
 #map { height: 100%; width: 100%; }
 
-/* Top Drawer */
+/* Drawer */
 #drawer {
   position: fixed;
-  top: -320px;
+  top: -260px;
   left: 0;
   width: 100%;
   background: white;
@@ -37,7 +37,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   margin-bottom: 12px;
 }
 
-#drawer .buttonRow { display: flex; gap: 12px; flex-wrap: wrap; }
+#drawer .buttonRow { display: flex; gap: 10px; flex-wrap: wrap; }
 #drawer .buttonRow button {
   flex: 1;
   padding: 12px;
@@ -47,6 +47,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   cursor: pointer;
   background: white;
 }
+#drawer .buttonRow button:hover { background: #f0f0f0; }
 
 .checkboxRow {
   display: flex;
@@ -55,9 +56,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   gap: 40px;
   font-size: 14px;
   color: #333;
-  cursor: pointer;
 }
-.checkboxRow input[type="checkbox"] { width: auto; margin: 0; }
 
 /* Drawer toggle button */
 #toggleDrawerBtn {
@@ -95,7 +94,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   left: 0;
   width: 100%;
   background: rgba(255,255,255,0.3);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: bold;
   text-align: center;
   padding: 6px 0;
@@ -104,7 +103,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   pointer-events: none;
 }
 
-/* Fullscreen button */
+/* Fullscreen */
 #fullscreenBtn {
   position: fixed;
   top: 10px;
@@ -122,6 +121,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   cursor: pointer;
 }
 
+/* Marker labels */
 .marker-label {
   background: transparent;
   border: none;
@@ -130,34 +130,22 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   font-size: 14px;
   text-shadow: 1px 1px 2px white;
 }
-
-/* Follow Me button */
-.followme-btn {
-  background: white;
-  border: none;
-  width: 34px;
-  height: 34px;
-  font-size: 18px;
-  line-height: 32px;
-  text-align: center;
-  cursor: pointer;
-}
-.followme-btn:hover { background: #f0f0f0; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<div id="drawer">
+<div id="drawer" class="open">
   <input type="text" id="coordsInput" placeholder="lat, lon">
   <div class="buttonRow">
     <button id="addMarkerBtn">Add Marker</button>
     <button id="clearMarkersBtn">Clear All Markers</button>
     <button id="resetCounterBtn">Reset Numbering</button>
-    <input type="file" id="fileInput" accept=".txt,.csv" />
+    <button id="openTextBtn">Text File Edit</button>
+    <button id="chooseFileBtn">Load Route</button>
+    <input type="file" id="fileInput" accept=".txt,.csv" style="display:none;">
   </div>
-
   <div class="checkboxRow">
     <label><input type="checkbox" id="keepOpenCheckbox"> Keep open after adding</label>
     <label><input type="checkbox" id="freezeMapCheckbox"> Freeze map</label>
@@ -173,7 +161,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
 <script>
 const map = L.map('map').setView([54.971793, -2.949397], 16);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors | © KC 2025'
+  attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors | &copy; KC 2025'
 }).addTo(map);
 
 // Drawer toggle
@@ -189,8 +177,7 @@ window.addEventListener('resize', updateToggleButton);
 document.addEventListener('DOMContentLoaded', () => { setTimeout(updateToggleButton, 100); });
 
 // Fullscreen button
-const fullscreenBtn = document.getElementById('fullscreenBtn');
-fullscreenBtn.onclick = () => {
+document.getElementById('fullscreenBtn').onclick = () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(err=>console.warn(err));
   else document.exitFullscreen();
 };
@@ -202,7 +189,13 @@ L.Control.FollowMe = L.Control.extend({
     const btn = L.DomUtil.create('button', 'leaflet-bar followme-btn');
     btn.innerHTML = '📍';
     btn.title = "Toggle Follow Me";
-    L.DomEvent.on(btn,'click', e => {
+    btn.style.background = 'white';
+    btn.style.cursor = 'pointer';
+    btn.style.width = '34px';
+    btn.style.height = '34px';
+    btn.style.fontSize = '18px';
+    btn.style.lineHeight = '32px';
+    L.DomEvent.on(btn, 'click', e => {
       L.DomEvent.stopPropagation(e);
       following = !following;
       btn.style.background = following ? '#007bff' : 'white';
@@ -213,23 +206,19 @@ L.Control.FollowMe = L.Control.extend({
 L.control.followMe = function(opts){ return new L.Control.FollowMe(opts); }
 L.control.followMe({position:'topleft'}).addTo(map);
 
-// GPS + red arrow marker
+// GPS Marker and movement
 let currentMarker = null;
 const posBar = document.getElementById('positionBar');
+let firstFix = true;
 let lastLat = null, lastLon = null, lastTime = null;
 let currentAngle = 0;
 let freezeMap = false;
-
-document.getElementById('freezeMapCheckbox').addEventListener('change', e => {
-  freezeMap = e.target.checked;
-});
+document.getElementById('freezeMapCheckbox').addEventListener('change', e => freezeMap = e.target.checked);
 
 function createArrowIcon() {
   return L.divIcon({
     className: '',
-    html: `<svg width="24" height="24" viewBox="0 0 24 24">
-      <polygon points="12,0 24,24 12,18 0,24" fill="red"/>
-    </svg>`,
+    html: `<svg width="24" height="24" viewBox="0 0 24 24"><polygon points="12,0 24,24 12,18 0,24" fill="red"/></svg>`,
     iconSize: [24,24],
     iconAnchor: [12,12]
   });
@@ -244,113 +233,143 @@ navigator.geolocation.watchPosition(
     const now = pos.timestamp;
     const heading = pos.coords.heading !== null ? pos.coords.heading : currentAngle;
 
-    // Speed
     let speedText = '';
     if(lastLat!==null && lastLon!==null && lastTime!==null){
       const distance = map.distance([lastLat,lastLon],[lat,lon]);
       const timeDiff = (now-lastTime)/1000;
       const speedMps = distance/timeDiff;
       const speedMph = speedMps*2.23694;
-      if(speedMph>3) speedText=` | Speed: ${speedMph.toFixed(1)} mph`;
+      if(speedMph>3) speedText=` | ${speedMph.toFixed(1)} mph`;
     }
     lastLat=lat; lastLon=lon; lastTime=now;
 
-    posBar.textContent=`Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)}${speedText}`;
+    posBar.textContent = `Lat: ${lat.toFixed(5)} , Lon: ${lon.toFixed(5)}${speedText}`;
 
     if(!freezeMap){
       if(!currentMarker){
-        currentMarker=L.marker([lat,lon],{icon:createArrowIcon(),rotationAngle:heading}).addTo(map);
-        currentAngle=heading;
-        map.setView([lat,lon],16);
+        currentMarker = L.marker([lat,lon], {icon:createArrowIcon(), rotationAngle:heading}).addTo(map);
+        currentAngle = heading;
       } else {
         const latLng=currentMarker.getLatLng();
-        const newLat=lerp(latLng.lat,lat,0.2);
-        const newLng=lerp(latLng.lng,lon,0.2);
+        const newLat=lerp(latLng.lat, lat, 0.2);
+        const newLng=lerp(latLng.lng, lon, 0.2);
         currentMarker.setLatLng([newLat,newLng]);
         currentAngle=lerpAngle(currentAngle,heading,0.2);
         currentMarker.setRotationAngle(currentAngle);
       }
+      if(firstFix){ map.setView([lat,lon],16); firstFix=false; }
       if(following) map.setView([lat,lon]);
     }
   },
-  err=>console.warn(err),
-  { enableHighAccuracy:true }
+  err => console.warn(err),
+  { enableHighAccuracy: true }
 );
 
-// --- Numbered Markers with Persistence ---
-let markerCount = parseInt(localStorage.getItem('markerCount')) || 0;
-let storedMarkers = JSON.parse(localStorage.getItem('markers')||'[]');
+// Marker management
 const userMarkers = [];
+let markerCount = parseInt(localStorage.getItem('markerCount')) || 0;
 
-function saveMarkers() {
-  const data = userMarkers.map(m=>{
-    const pos=m.getLatLng();
-    return {id:m.options.markerId,lat:pos.lat,lng:pos.lng};
-  });
-  localStorage.setItem('markers',JSON.stringify(data));
-  localStorage.setItem('markerCount',markerCount);
-}
+function addNumberedMarker(lat, lon, num=null) {
+  const number = num || ++markerCount;
+  localStorage.setItem('markerCount', markerCount);
 
-function addNumberedMarker(lat,lon,id=null) {
-  if(!id){ markerCount++; id=markerCount; }
-  const m=L.marker([lat,lon],{draggable:true,autoPan:true,markerId:id})
+  const m = L.marker([lat, lon], { draggable: true })
     .addTo(map)
-    .bindPopup(`Marker #${id}<br>Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)}`)
-    .openPopup();
-  m.bindTooltip(`${id}`,{permanent:true,direction:'center',className:'marker-label'});
-  m.on('dragend',()=>{ const pos=m.getLatLng(); m.setPopupContent(`Marker #${id}<br>Lat: ${pos.lat.toFixed(5)}, Lon: ${pos.lng.toFixed(5)}`); saveMarkers(); });
-  userMarkers.push(m); saveMarkers(); return m;
+    .bindTooltip(`${number}`, { permanent:true, direction:'center', className:'marker-label' });
+
+  userMarkers.push(m);
+  return m;
 }
 
-// Restore stored markers
-storedMarkers.forEach(sm=>{ addNumberedMarker(sm.lat,sm.lng,sm.id); });
-
-// Buttons
-document.getElementById('addMarkerBtn').addEventListener('click',()=>{
-  const input=document.getElementById('coordsInput').value.trim();
+// Add Marker button
+document.getElementById('addMarkerBtn').addEventListener('click', () => {
+  const input = document.getElementById('coordsInput').value.trim();
   if(!input.includes(',')) return alert('Enter coordinates as lat, lon');
-  const parts=input.split(',').map(p=>parseFloat(p.trim()));
-  if(parts.length!==2||parts.some(isNaN)) return alert('Invalid numbers');
-  const [lat,lon]=parts;
-  addNumberedMarker(lat,lon);
-  map.panTo([lat,lon]);
-  document.getElementById('coordsInput').value='';
-  if(!document.getElementById('keepOpenCheckbox').checked){ drawer.classList.remove('open'); updateToggleButton(); }
-});
-
-document.getElementById('clearMarkersBtn').addEventListener('click',()=>{
-  userMarkers.forEach(m=>map.removeLayer(m));
-  userMarkers.length=0;
-  markerCount=0;
-  localStorage.setItem('markerCount',0);
-  localStorage.setItem('markers','[]');
-});
-
-document.getElementById('resetCounterBtn').addEventListener('click',()=>{
-  if(confirm("Reset numbering back to 0? New markers will start at #1 (old markers keep their numbers).")){
-    markerCount=0; localStorage.setItem('markerCount',0);
+  const [lat, lon] = input.split(',').map(Number);
+  if(isNaN(lat) || isNaN(lon)) return alert('Invalid numbers');
+  addNumberedMarker(lat, lon);
+  map.panTo([lat, lon]);
+  document.getElementById('coordsInput').value = '';
+  if(!document.getElementById('keepOpenCheckbox').checked){
+    drawer.classList.remove('open'); updateToggleButton();
   }
 });
 
-// Double click to add marker
-map.on('dblclick',e=>{ const {lat,lng}=e.latlng; addNumberedMarker(lat,lng); });
+// Clear Markers (also reset numbering)
+document.getElementById('clearMarkersBtn').addEventListener('click', () => {
+  userMarkers.forEach(m=>map.removeLayer(m));
+  userMarkers.length = 0;
+  markerCount = 0;
+  localStorage.setItem('markerCount', 0);
+});
 
-// File import
-document.getElementById('fileInput').addEventListener('change',e=>{
-  const file=e.target.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=evt=>{
-    const lines=evt.target.result.split(/\r?\n/).filter(l=>l.trim().length);
-    lines.forEach(line=>{
-      const parts=line.split(',').map(p=>p.trim());
-      if(parts.length>=3){
-        const lat=parseFloat(parts[1]); const lon=parseFloat(parts[2]);
-        if(!isNaN(lat)&&!isNaN(lon)) addNumberedMarker(lat,lon);
+// Reset Numbering
+document.getElementById('resetCounterBtn').addEventListener('click', () => {
+  if(confirm("Reset numbering to 0?")){
+    markerCount = 0;
+    localStorage.setItem('markerCount', 0);
+    alert("Numbering reset. Next marker will be #1.");
+  }
+});
+
+// Open Text.html
+document.getElementById('openTextBtn').addEventListener('click', () => {
+  window.open('Text.html', '_blank');
+});
+
+// Choose File button (triggers hidden file input)
+document.getElementById('chooseFileBtn').addEventListener('click', () => {
+  const fileInput = document.getElementById('fileInput');
+  fileInput.value = ''; // reset so same file can be reloaded
+  fileInput.click();
+});
+
+// File load
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = event => {
+    const lines = event.target.result.trim().split('\n');
+    const points = [];
+    lines.forEach(line => {
+      const parts = line.split(',');
+      if(parts.length >= 3) {
+        const num = parseInt(parts[0].trim());
+        const lat = parseFloat(parts[1].trim());
+        const lon = parseFloat(parts[2].trim());
+        if(!isNaN(lat) && !isNaN(lon)){
+          addNumberedMarker(lat, lon, num);
+          points.push([lat, lon]);
+        }
       }
     });
+    if(points.length>0){
+      const bounds = L.latLngBounds(points);
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
   };
   reader.readAsText(file);
 });
+
+// Double click adds marker
+map.on('dblclick', e => {
+  const { lat, lng } = e.latlng;
+  addNumberedMarker(lat, lng);
+});
+// --- Wake Lock ---
+let wakeLock = null;
+async function enableWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', ()=>console.log('Wake lock released'));
+    }
+  } catch(err){ console.error('Wake Lock error:', err); }
+}
+enableWakeLock();
+setInterval(()=>{ if(!wakeLock) enableWakeLock(); }, 12000);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && !wakeLock) enableWakeLock(); });
 </script>
 </body>
 </html>
