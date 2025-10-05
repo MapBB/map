@@ -1,3 +1,4 @@
+<!-- 🔹 ONLY MODIFIED PART BELOW — Full file ready to paste -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,7 +56,6 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   margin-top: 12px;
   gap: 40px;
   font-size: 14px;
-  color: #333;
 }
 
 /* Drawer toggle button */
@@ -176,7 +176,7 @@ toggleBtn.addEventListener('click', () => { drawer.classList.toggle('open'); upd
 window.addEventListener('resize', updateToggleButton);
 document.addEventListener('DOMContentLoaded', () => { setTimeout(updateToggleButton, 100); });
 
-// Fullscreen button
+// Fullscreen
 document.getElementById('fullscreenBtn').onclick = () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(err=>console.warn(err));
   else document.exitFullscreen();
@@ -206,14 +206,11 @@ L.Control.FollowMe = L.Control.extend({
 L.control.followMe = function(opts){ return new L.Control.FollowMe(opts); }
 L.control.followMe({position:'topleft'}).addTo(map);
 
-// GPS Marker and movement
+// GPS Marker
 let currentMarker = null;
 const posBar = document.getElementById('positionBar');
-let firstFix = true;
-let lastLat = null, lastLon = null, lastTime = null;
-let currentAngle = 0;
-let freezeMap = false;
-document.getElementById('freezeMapCheckbox').addEventListener('change', e => freezeMap = e.target.checked);
+let firstFix = true, lastLat=null, lastLon=null, lastTime=null, currentAngle=0, freezeMap=false;
+document.getElementById('freezeMapCheckbox').addEventListener('change', e=>freezeMap=e.target.checked);
 
 function createArrowIcon() {
   return L.divIcon({
@@ -226,150 +223,162 @@ function createArrowIcon() {
 function lerp(a,b,t){ return a+(b-a)*t; }
 function lerpAngle(a,b,t){ const diff=((b-a+540)%360)-180; return a+diff*t; }
 
-navigator.geolocation.watchPosition(
-  pos => {
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-    const now = pos.timestamp;
-    const heading = pos.coords.heading !== null ? pos.coords.heading : currentAngle;
-
-    let speedText = '';
-    if(lastLat!==null && lastLon!==null && lastTime!==null){
-      const distance = map.distance([lastLat,lastLon],[lat,lon]);
-      const timeDiff = (now-lastTime)/1000;
-      const speedMps = distance/timeDiff;
-      const speedMph = speedMps*2.23694;
-      if(speedMph>3) speedText=` | ${speedMph.toFixed(1)} mph`;
+navigator.geolocation.watchPosition(pos=>{
+  const lat=pos.coords.latitude, lon=pos.coords.longitude, now=pos.timestamp;
+  const heading=pos.coords.heading!==null?pos.coords.heading:currentAngle;
+  let speedText='';
+  if(lastLat!==null && lastLon!==null && lastTime!==null){
+    const distance=map.distance([lastLat,lastLon],[lat,lon]);
+    const timeDiff=(now-lastTime)/1000;
+    const speedMps=distance/timeDiff;
+    const speedMph=speedMps*2.23694;
+    if(speedMph>3) speedText=` | ${speedMph.toFixed(1)} mph`;
+  }
+  lastLat=lat; lastLon=lon; lastTime=now;
+  posBar.textContent=`Lat: ${lat.toFixed(5)} , Lon: ${lon.toFixed(5)}${speedText}`;
+  if(!freezeMap){
+    if(!currentMarker){
+      currentMarker=L.marker([lat,lon],{icon:createArrowIcon(),rotationAngle:heading}).addTo(map);
+      currentAngle=heading;
+    }else{
+      const ll=currentMarker.getLatLng();
+      currentMarker.setLatLng([lerp(ll.lat,lat,0.2),lerp(ll.lng,lon,0.2)]);
+      currentAngle=lerpAngle(currentAngle,heading,0.2);
+      currentMarker.setRotationAngle(currentAngle);
     }
-    lastLat=lat; lastLon=lon; lastTime=now;
-
-    posBar.textContent = `Lat: ${lat.toFixed(5)} , Lon: ${lon.toFixed(5)}${speedText}`;
-
-    if(!freezeMap){
-      if(!currentMarker){
-        currentMarker = L.marker([lat,lon], {icon:createArrowIcon(), rotationAngle:heading}).addTo(map);
-        currentAngle = heading;
-      } else {
-        const latLng=currentMarker.getLatLng();
-        const newLat=lerp(latLng.lat, lat, 0.2);
-        const newLng=lerp(latLng.lng, lon, 0.2);
-        currentMarker.setLatLng([newLat,newLng]);
-        currentAngle=lerpAngle(currentAngle,heading,0.2);
-        currentMarker.setRotationAngle(currentAngle);
-      }
-      if(firstFix){ map.setView([lat,lon],16); firstFix=false; }
-      if(following) map.setView([lat,lon]);
-    }
-  },
-  err => console.warn(err),
-  { enableHighAccuracy: true }
-);
+    if(firstFix){ map.setView([lat,lon],16); firstFix=false; }
+    if(following) map.setView([lat,lon]);
+  }
+}, err=>console.warn(err), { enableHighAccuracy:true });
 
 // Marker management
-const userMarkers = [];
+const userMarkers=[];
 let markerCount = parseInt(localStorage.getItem('markerCount')) || 0;
 
-function addNumberedMarker(lat, lon, num=null) {
-  const number = num || ++markerCount;
-  localStorage.setItem('markerCount', markerCount);
-
-  const m = L.marker([lat, lon], { draggable: true })
+function addNumberedMarker(lat, lon, num=null){
+  const number=num || ++markerCount;
+  if(!num) localStorage.setItem('markerCount', markerCount);
+  const m=L.marker([lat,lon],{draggable:true})
     .addTo(map)
-    .bindTooltip(`${number}`, { permanent:true, direction:'center', className:'marker-label' });
+    .bindTooltip(`${number}`, {permanent:true,direction:'center',className:'marker-label'})
+    .bindPopup(`Marker #${number}<br>Lat:${lat.toFixed(5)}, Lon:${lon.toFixed(5)}
+      <br><button onclick="renumberMarker(${userMarkers.length})">Renumber</button>
+      <button onclick="deleteMarker(${userMarkers.length})">Delete</button>`);
 
-  userMarkers.push(m);
+  m.on('dragend', ()=> {
+    const ll=m.getLatLng();
+    m.setPopupContent(`Marker #${number}<br>Lat:${ll.lat.toFixed(5)}, Lon:${ll.lng.toFixed(5)}
+      <br><button onclick="renumberMarker(${userMarkers.indexOf(m)})">Renumber</button>
+      <button onclick="deleteMarker(${userMarkers.indexOf(m)})">Delete</button>`);
+  });
+
+  m.on('click', ()=> m.openPopup()); // works on mobile
+
+  userMarkers.push({marker:m, number:number});
   return m;
 }
 
+function renumberMarker(index){
+  const mObj=userMarkers[index];
+  if(!mObj) return;
+  const newNum=parseInt(prompt("Enter new marker number:", mObj.number));
+  if(isNaN(newNum)) return;
+  mObj.number=newNum;
+  mObj.marker.unbindTooltip();
+  mObj.marker.bindTooltip(`${newNum}`,{permanent:true,direction:'center',className:'marker-label'});
+  const ll=mObj.marker.getLatLng();
+  mObj.marker.setPopupContent(`Marker #${newNum}<br>Lat:${ll.lat.toFixed(5)}, Lon:${ll.lng.toFixed(5)}
+    <br><button onclick="renumberMarker(${index})">Renumber</button>
+    <button onclick="deleteMarker(${index})">Delete</button>`);
+}
+
+// 🟢 NEW: Delete marker function
+function deleteMarker(index){
+  const mObj=userMarkers[index];
+  if(!mObj) return;
+  map.removeLayer(mObj.marker);
+  userMarkers.splice(index,1);
+}
+
 // Add Marker button
-document.getElementById('addMarkerBtn').addEventListener('click', () => {
-  const input = document.getElementById('coordsInput').value.trim();
+document.getElementById('addMarkerBtn').addEventListener('click', ()=>{
+  const input=document.getElementById('coordsInput').value.trim();
   if(!input.includes(',')) return alert('Enter coordinates as lat, lon');
-  const [lat, lon] = input.split(',').map(Number);
+  const [lat, lon]=input.split(',').map(Number);
   if(isNaN(lat) || isNaN(lon)) return alert('Invalid numbers');
   addNumberedMarker(lat, lon);
   map.panTo([lat, lon]);
-  document.getElementById('coordsInput').value = '';
-  if(!document.getElementById('keepOpenCheckbox').checked){
-    drawer.classList.remove('open'); updateToggleButton();
-  }
+  document.getElementById('coordsInput').value='';
+  if(!document.getElementById('keepOpenCheckbox').checked){ drawer.classList.remove('open'); updateToggleButton(); }
 });
 
-// Clear Markers (also reset numbering)
-document.getElementById('clearMarkersBtn').addEventListener('click', () => {
-  userMarkers.forEach(m=>map.removeLayer(m));
-  userMarkers.length = 0;
-  markerCount = 0;
-  localStorage.setItem('markerCount', 0);
+// Clear Markers + reset numbering
+document.getElementById('clearMarkersBtn').addEventListener('click', ()=>{
+  userMarkers.forEach(mObj=>map.removeLayer(mObj.marker));
+  userMarkers.length=0;
+  markerCount=0;
+  localStorage.setItem('markerCount',0);
 });
 
-// Reset Numbering
-document.getElementById('resetCounterBtn').addEventListener('click', () => {
+// Reset numbering
+document.getElementById('resetCounterBtn').addEventListener('click', ()=>{
   if(confirm("Reset numbering to 0?")){
-    markerCount = 0;
-    localStorage.setItem('markerCount', 0);
+    markerCount=0;
+    localStorage.setItem('markerCount',0);
     alert("Numbering reset. Next marker will be #1.");
   }
 });
 
 // Open Text.html
-document.getElementById('openTextBtn').addEventListener('click', () => {
-  window.open('Text.html', '_blank');
-});
+document.getElementById('openTextBtn').addEventListener('click', ()=>window.open('Text.html','_blank'));
 
-// Choose File button (triggers hidden file input)
-document.getElementById('chooseFileBtn').addEventListener('click', () => {
-  const fileInput = document.getElementById('fileInput');
-  fileInput.value = ''; // reset so same file can be reloaded
+// File input
+document.getElementById('chooseFileBtn').addEventListener('click', ()=>{
+  const fileInput=document.getElementById('fileInput');
+  fileInput.value='';
   fileInput.click();
 });
-
-// File load
-document.getElementById('fileInput').addEventListener('change', e => {
-  const file = e.target.files[0];
+document.getElementById('fileInput').addEventListener('change', e=>{
+  const file=e.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = event => {
-    const lines = event.target.result.trim().split('\n');
-    const points = [];
-    lines.forEach(line => {
-      const parts = line.split(',');
-      if(parts.length >= 3) {
-        const num = parseInt(parts[0].trim());
-        const lat = parseFloat(parts[1].trim());
-        const lon = parseFloat(parts[2].trim());
-        if(!isNaN(lat) && !isNaN(lon)){
+  const reader=new FileReader();
+  reader.onload=event=>{
+    const lines=event.target.result.trim().split('\n');
+    const points=[];
+    lines.forEach(line=>{
+      const parts=line.split(',');
+      if(parts.length>=3){
+        const num=parseInt(parts[0].trim());
+        const lat=parseFloat(parts[1].trim());
+        const lon=parseFloat(parts[2].trim());
+        if(!isNaN(lat)&&!isNaN(lon)){
           addNumberedMarker(lat, lon, num);
           points.push([lat, lon]);
         }
       }
     });
-    if(points.length>0){
-      const bounds = L.latLngBounds(points);
-      map.fitBounds(bounds, { padding: [50, 50] });
-    }
+    if(points.length>0) map.fitBounds(L.latLngBounds(points),{padding:[50,50]});
   };
   reader.readAsText(file);
 });
 
-// Double click adds marker
-map.on('dblclick', e => {
-  const { lat, lng } = e.latlng;
-  addNumberedMarker(lat, lng);
-});
+// Double click to add
+map.on('dblclick', e=>addNumberedMarker(e.latlng.lat,e.latlng.lng));
+
 // --- Wake Lock ---
-let wakeLock = null;
-async function enableWakeLock() {
-  try {
-    if ('wakeLock' in navigator) {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', ()=>console.log('Wake lock released'));
+let wakeLock=null;
+async function enableWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock=await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release',()=>console.log('Wake lock released'));
     }
-  } catch(err){ console.error('Wake Lock error:', err); }
+  }catch(err){ console.error(err); }
 }
 enableWakeLock();
-setInterval(()=>{ if(!wakeLock) enableWakeLock(); }, 12000);
+setInterval(()=>{ if(!wakeLock) enableWakeLock(); },12000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && !wakeLock) enableWakeLock(); });
+
 </script>
 </body>
 </html>
