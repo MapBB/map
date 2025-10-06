@@ -1,10 +1,9 @@
-<!-- 🔹 ONLY MODIFIED PART BELOW — Full file ready to paste -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Leaflet Map with Persistent Numbering & Import</title>
+<title>Leaflet Map with Persistent Numbering & Smart Zoom</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
 html, body { height: 100%; margin: 0; font-family: sans-serif; }
@@ -144,14 +143,12 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
     <button id="resetCounterBtn">Reset Numbering</button>
     <button id="openTextBtn">Text File Edit</button>
     <button id="chooseFileBtn">Load Route</button>
-	<button id="exportWptBtn">Export WPT</button>
+    <button id="exportWptBtn">Export WPT</button>
     <input type="file" id="fileInput" accept=".txt,.csv" style="display:none;">
   </div>
   <div class="checkboxRow">
     <label><input type="checkbox" id="keepOpenCheckbox"> Keep open after adding</label>
     <label><input type="checkbox" id="freezeMapCheckbox"> Freeze map</label>
-	
-	<!-- 🟢 NEW: Checkbox to enable/disable double-click marker adding -->
     <label><input type="checkbox" id="dblClickCheckbox" checked> Disable double-click add</label>
   </div>
 </div>
@@ -210,7 +207,7 @@ L.Control.FollowMe = L.Control.extend({
 L.control.followMe = function(opts){ return new L.Control.FollowMe(opts); }
 L.control.followMe({position:'topleft'}).addTo(map);
 
-// GPS Marker
+// GPS Marker and state
 let currentMarker = null;
 const posBar = document.getElementById('positionBar');
 let firstFix = true, lastLat=null, lastLon=null, lastTime=null, currentAngle=0, freezeMap=false;
@@ -226,34 +223,6 @@ function createArrowIcon() {
 }
 function lerp(a,b,t){ return a+(b-a)*t; }
 function lerpAngle(a,b,t){ const diff=((b-a+540)%360)-180; return a+diff*t; }
-
-navigator.geolocation.watchPosition(pos=>{
-  const lat=pos.coords.latitude, lon=pos.coords.longitude, now=pos.timestamp;
-  const heading=pos.coords.heading!==null?pos.coords.heading:currentAngle;
-  let speedText='';
-  if(lastLat!==null && lastLon!==null && lastTime!==null){
-    const distance=map.distance([lastLat,lastLon],[lat,lon]);
-    const timeDiff=(now-lastTime)/1000;
-    const speedMps=distance/timeDiff;
-    const speedMph=speedMps*2.23694;
-    if(speedMph>3) speedText=` | ${speedMph.toFixed(1)} mph`;
-  }
-  lastLat=lat; lastLon=lon; lastTime=now;
-  posBar.textContent=`Lat: ${lat.toFixed(5)} , Lon: ${lon.toFixed(5)}${speedText}`;
-  if(!freezeMap){
-    if(!currentMarker){
-      currentMarker=L.marker([lat,lon],{icon:createArrowIcon(),rotationAngle:heading}).addTo(map);
-      currentAngle=heading;
-    }else{
-      const ll=currentMarker.getLatLng();
-      currentMarker.setLatLng([lerp(ll.lat,lat,0.2),lerp(ll.lng,lon,0.2)]);
-      currentAngle=lerpAngle(currentAngle,heading,0.2);
-      currentMarker.setRotationAngle(currentAngle);
-    }
-    if(firstFix){ map.setView([lat,lon],16); firstFix=false; }
-    if(following) map.setView([lat,lon]);
-  }
-}, err=>console.warn(err), { enableHighAccuracy:true });
 
 // Marker management
 const userMarkers=[];
@@ -275,9 +244,7 @@ function addNumberedMarker(lat, lon, num=null){
       <br><button onclick="renumberMarker(${userMarkers.indexOf(m)})">Renumber</button>
       <button onclick="deleteMarker(${userMarkers.indexOf(m)})">Delete</button>`);
   });
-
-  m.on('click', ()=> m.openPopup()); // works on mobile
-
+  m.on('click', ()=> m.openPopup());
   userMarkers.push({marker:m, number:number});
   return m;
 }
@@ -296,7 +263,6 @@ function renumberMarker(index){
     <button onclick="deleteMarker(${index})">Delete</button>`);
 }
 
-// 🟢 NEW: Delete marker function
 function deleteMarker(index){
   const mObj=userMarkers[index];
   if(!mObj) return;
@@ -304,7 +270,7 @@ function deleteMarker(index){
   userMarkers.splice(index,1);
 }
 
-// 🟢 NEW: Export WPTs to TXT file
+// Export WPT to TXT
 document.getElementById('exportWptBtn').addEventListener('click', ()=>{
   if(userMarkers.length===0) return alert("No markers to export.");
   let txt="Number,Latitude,Longitude\n";
@@ -320,7 +286,7 @@ document.getElementById('exportWptBtn').addEventListener('click', ()=>{
   URL.revokeObjectURL(a.href);
 });
 
-// Add Marker button
+// Add marker from text input
 document.getElementById('addMarkerBtn').addEventListener('click', ()=>{
   const input=document.getElementById('coordsInput').value.trim();
   if(!input.includes(',')) return alert('Enter coordinates as lat, lon');
@@ -332,7 +298,7 @@ document.getElementById('addMarkerBtn').addEventListener('click', ()=>{
   if(!document.getElementById('keepOpenCheckbox').checked){ drawer.classList.remove('open'); updateToggleButton(); }
 });
 
-// Clear Markers + reset numbering
+// Clear all markers
 document.getElementById('clearMarkersBtn').addEventListener('click', ()=>{
   userMarkers.forEach(mObj=>map.removeLayer(mObj.marker));
   userMarkers.length=0;
@@ -349,10 +315,10 @@ document.getElementById('resetCounterBtn').addEventListener('click', ()=>{
   }
 });
 
-// Open Text.html
+// Open text editor
 document.getElementById('openTextBtn').addEventListener('click', ()=>window.open('Text.html','_blank'));
 
-// File input
+// Load route
 document.getElementById('chooseFileBtn').addEventListener('click', ()=>{
   const fileInput=document.getElementById('fileInput');
   fileInput.value='';
@@ -382,26 +348,85 @@ document.getElementById('fileInput').addEventListener('change', e=>{
   reader.readAsText(file);
 });
 
-// --- Double click to add (modified) ---
+// 🟢 Double-click enable/disable checkbox logic
 let dblClickEnabled = false;
-
-// 🟢 Restore saved setting from localStorage
 if (localStorage.getItem('dblClickEnabled') !== null) {
   dblClickEnabled = (localStorage.getItem('dblClickEnabled') === 'true');
   document.getElementById('dblClickCheckbox').checked = !dblClickEnabled;
 }
-
-// 🟢 Listen for checkbox change and save preference
 document.getElementById('dblClickCheckbox').addEventListener('change', e => {
   dblClickEnabled = !e.target.checked;
   localStorage.setItem('dblClickEnabled', dblClickEnabled);
 });
-
-// 🟢 Double-click handler respects checkbox state
 map.on('dblclick', e => {
-  if (!dblClickEnabled) return; // disabled by checkbox
+  if (!dblClickEnabled) return;
   addNumberedMarker(e.latlng.lat, e.latlng.lng);
 });
+
+// 🟢 Smart zoom based on proximity
+let defaultZoom = map.getZoom();
+let zoomedIn = false;
+map.on('zoomend', () => { if (!zoomedIn) defaultZoom = map.getZoom(); });
+function getNearestMarkerDistance(lat, lon) {
+  if (userMarkers.length === 0) return Infinity;
+  let minDist = Infinity;
+  userMarkers.forEach(mObj => {
+    const ll = mObj.marker.getLatLng();
+    const dist = map.distance([lat, lon], [ll.lat, ll.lng]);
+    if (dist < minDist) minDist = dist;
+  });
+  return minDist;
+}
+
+// 🟢 GPS tracking with zoom logic + accuracy
+navigator.geolocation.watchPosition(pos=>{
+  const lat = pos.coords.latitude,
+        lon = pos.coords.longitude,
+        acc = pos.coords.accuracy,
+        now = pos.timestamp;
+  const heading = pos.coords.heading !== null ? pos.coords.heading : currentAngle;
+  let speedText = '';
+  let speedMph = 0;
+
+  if (lastLat !== null && lastLon !== null && lastTime !== null) {
+    const distance = map.distance([lastLat, lastLon], [lat, lon]);
+    const timeDiff = (now - lastTime) / 1000;
+    const speedMps = distance / timeDiff;
+    speedMph = speedMps * 2.23694;
+    if (speedMph > 3) speedText = ` | ${speedMph.toFixed(1)} mph`;
+  }
+
+  lastLat = lat;
+  lastLon = lon;
+  lastTime = now;
+
+  posBar.textContent = `Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} | ±${acc.toFixed(0)}m${speedText}`;
+
+  if (!freezeMap) {
+    if (!currentMarker) {
+      currentMarker = L.marker([lat, lon], { icon: createArrowIcon(), rotationAngle: heading }).addTo(map);
+      currentAngle = heading;
+    } else {
+      const ll = currentMarker.getLatLng();
+      currentMarker.setLatLng([lerp(ll.lat, lat, 0.2), lerp(ll.lng, lon, 0.2)]);
+      currentAngle = lerpAngle(currentAngle, heading, 0.2);
+      currentMarker.setRotationAngle(currentAngle);
+    }
+    if (firstFix) { map.setView([lat, lon], 16); firstFix = false; }
+    if (following) map.setView([lat, lon]);
+  }
+
+  const nearest = getNearestMarkerDistance(lat, lon);
+  if (!zoomedIn && nearest < 500) {
+    zoomedIn = true;
+    map.setZoom(17);
+  } else if (zoomedIn && nearest > 600) {
+    zoomedIn = false;
+    map.setZoom(defaultZoom);
+  }
+
+}, err => console.warn(err), { enableHighAccuracy: true });
+
 // --- Wake Lock ---
 let wakeLock=null;
 async function enableWakeLock(){
@@ -415,7 +440,6 @@ async function enableWakeLock(){
 enableWakeLock();
 setInterval(()=>{ if(!wakeLock) enableWakeLock(); },12000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && !wakeLock) enableWakeLock(); });
-
 </script>
 </body>
 </html>
