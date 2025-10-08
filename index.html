@@ -1,6 +1,3 @@
-
-
-<!-- 🔹 ONLY MODIFIED PART BELOW — Full file ready to paste -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -153,7 +150,6 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   <label><input type="checkbox" id="keepOpenCheckbox"> Keep open after adding</label>
   <label><input type="checkbox" id="freezeMapCheckbox"> Freeze map</label>
   <label><input type="checkbox" id="dblClickCheckbox" checked> Disable double-click add</label>
-  <!-- 🟢 NEW: Auto Zoom Checkbox -->
   <label><input type="checkbox" id="autoZoomCheckbox" checked> Enable Auto Zoom</label>
 </div>
 
@@ -229,7 +225,6 @@ function createArrowIcon() {
 function lerp(a,b,t){ return a+(b-a)*t; }
 function lerpAngle(a,b,t){ const diff=((b-a+540)%360)-180; return a+diff*t; }
 
-
 // 🟢 Auto Zoom toggle
 let autoZoomEnabled = true;
 document.getElementById('autoZoomCheckbox').addEventListener('change', e => {
@@ -263,23 +258,21 @@ navigator.geolocation.watchPosition(pos=>{
     }
     if(firstFix){ map.setView([lat,lon],16); firstFix=false; }
     if(following) map.setView([lat,lon]);
-	// 🟢 Auto Zoom Logic
-if (autoZoomEnabled && userMarkers.length > 0) {
-  let nearest = Infinity;
-  for (const u of userMarkers) {
-    const dist = map.distance([lat, lon], u.marker.getLatLng());
-    if (dist < nearest) nearest = dist;
-  }
-  if (!zoomedIn && nearest < 500) {
-    savedZoom = map.getZoom();
-    map.setZoom(17);
-    zoomedIn = true;
-  } else if (zoomedIn && nearest > 600) {
-    map.setZoom(savedZoom);
-    zoomedIn = false;
-  }
-}
-
+	if (autoZoomEnabled && userMarkers.length > 0) {
+	  let nearest = Infinity;
+	  for (const u of userMarkers) {
+		const dist = map.distance([lat, lon], u.marker.getLatLng());
+		if (dist < nearest) nearest = dist;
+	  }
+	  if (!zoomedIn && nearest < 500) {
+		savedZoom = map.getZoom();
+		map.setZoom(17);
+		zoomedIn = true;
+	  } else if (zoomedIn && nearest > 600) {
+		map.setZoom(savedZoom);
+		zoomedIn = false;
+	  }
+	}
   }
 }, err=>console.warn(err), { enableHighAccuracy:true });
 
@@ -304,7 +297,7 @@ function addNumberedMarker(lat, lon, num=null){
       <button onclick="deleteMarker(${userMarkers.indexOf(m)})">Delete</button>`);
   });
 
-  m.on('click', ()=> m.openPopup()); // works on mobile
+  m.on('click', ()=> m.openPopup());
 
   userMarkers.push({marker:m, number:number});
   return m;
@@ -324,7 +317,6 @@ function renumberMarker(index){
     <button onclick="deleteMarker(${index})">Delete</button>`);
 }
 
-// 🟢 NEW: Delete marker function
 function deleteMarker(index){
   const mObj=userMarkers[index];
   if(!mObj) return;
@@ -332,7 +324,6 @@ function deleteMarker(index){
   userMarkers.splice(index,1);
 }
 
-// 🟢 NEW: Export WPTs to TXT file
 document.getElementById('exportWptBtn').addEventListener('click', ()=>{
   if(userMarkers.length===0) return alert("No markers to export.");
   let txt="Number,Latitude,Longitude\n";
@@ -348,7 +339,6 @@ document.getElementById('exportWptBtn').addEventListener('click', ()=>{
   URL.revokeObjectURL(a.href);
 });
 
-// Add Marker button
 document.getElementById('addMarkerBtn').addEventListener('click', ()=>{
   const input=document.getElementById('coordsInput').value.trim();
   if(!input.includes(',')) return alert('Enter coordinates as lat, lon');
@@ -360,7 +350,6 @@ document.getElementById('addMarkerBtn').addEventListener('click', ()=>{
   if(!document.getElementById('keepOpenCheckbox').checked){ drawer.classList.remove('open'); updateToggleButton(); }
 });
 
-// Clear Markers + reset numbering
 document.getElementById('clearMarkersBtn').addEventListener('click', ()=>{
   userMarkers.forEach(mObj=>map.removeLayer(mObj.marker));
   userMarkers.length=0;
@@ -368,7 +357,6 @@ document.getElementById('clearMarkersBtn').addEventListener('click', ()=>{
   localStorage.setItem('markerCount',0);
 });
 
-// Reset numbering
 document.getElementById('resetCounterBtn').addEventListener('click', ()=>{
   if(confirm("Reset numbering to 0?")){
     markerCount=0;
@@ -377,10 +365,8 @@ document.getElementById('resetCounterBtn').addEventListener('click', ()=>{
   }
 });
 
-// Open Text.html
 document.getElementById('openTextBtn').addEventListener('click', ()=>window.open('Text.html','_blank'));
 
-// File input
 document.getElementById('chooseFileBtn').addEventListener('click', ()=>{
   const fileInput=document.getElementById('fileInput');
   fileInput.value='';
@@ -410,40 +396,60 @@ document.getElementById('fileInput').addEventListener('change', e=>{
   reader.readAsText(file);
 });
 
-// --- Double click to add (modified) ---
 let dblClickEnabled = false;
 
-// 🟢 Restore saved setting from localStorage
 if (localStorage.getItem('dblClickEnabled') !== null) {
   dblClickEnabled = (localStorage.getItem('dblClickEnabled') === 'true');
   document.getElementById('dblClickCheckbox').checked = !dblClickEnabled;
 }
 
-// 🟢 Listen for checkbox change and save preference
 document.getElementById('dblClickCheckbox').addEventListener('change', e => {
   dblClickEnabled = !e.target.checked;
   localStorage.setItem('dblClickEnabled', dblClickEnabled);
 });
 
-// 🟢 Double-click handler respects checkbox state
 map.on('dblclick', e => {
-  if (!dblClickEnabled) return; // disabled by checkbox
+  if (!dblClickEnabled) return;
   addNumberedMarker(e.latlng.lat, e.latlng.lng);
 });
-// --- Wake Lock ---
-let wakeLock=null;
-async function enableWakeLock(){
-  try{
-    if('wakeLock' in navigator){
-      wakeLock=await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release',()=>console.log('Wake lock released'));
-    }
-  }catch(err){ console.error(err); }
-}
-enableWakeLock();
-setInterval(()=>{ if(!wakeLock) enableWakeLock(); },12000);
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && !wakeLock) enableWakeLock(); });
 
+// --- Wake Lock (corrected) ---
+let wakeLock = null;
+
+async function enableWakeLock() {
+  try {
+    if (!('wakeLock' in navigator)) {
+      console.warn("Wake Lock API not supported in this browser");
+      return;
+    }
+    wakeLock = await navigator.wakeLock.request('screen');
+    console.log("Wake Lock enabled ✅");
+    wakeLock.addEventListener('release', () => {
+      console.log("Wake Lock released ❌");
+      wakeLock = null;
+    });
+  } catch (err) {
+    console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+    wakeLock = null;
+  }
+}
+
+function startWakeLockMonitor() {
+  enableWakeLock();
+  setInterval(() => {
+    if (!wakeLock) enableWakeLock();
+  }, 12000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !wakeLock) enableWakeLock();
+  });
+}
+
+document.addEventListener('click', () => {
+  if (!wakeLock) {
+    startWakeLockMonitor();
+    console.log("Wake Lock monitor started after user interaction 🟢");
+  }
+}, { once: true });
 </script>
 </body>
 </html>
