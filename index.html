@@ -21,27 +21,27 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   border-bottom-right-radius: 12px;
   z-index: 1001;
   transition: top 0.3s ease;
-  padding: 14px;
+  padding: 12px;
   box-sizing: border-box;
 }
 #drawer.open { top: 0; }
 
 #drawer input[type="text"] {
   width: 100%;
-  padding: 14px;
-  font-size: 20px;
+  padding: 12px;
+  font-size:14px;
   font-weight: bold;
   border-radius: 6px;
   border: 1px solid #ccc;
   box-sizing: border-box;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 #drawer .buttonRow { display: flex; gap: 10px; flex-wrap: wrap; }
 #drawer .buttonRow button {
   flex: 1;
   padding: 12px;
-  font-size: 16px;
+  font-size: 12px;
   border-radius: 6px;
   border: 1px solid #ccc;
   cursor: pointer;
@@ -64,7 +64,8 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   left: 50%;
   transform: translateX(-50%);
   z-index: 1002;
-  background: #007bff;
+  //background: #007bff;
+  background: transparent;
   border: none;
   cursor: pointer;
   width: 60px;
@@ -81,7 +82,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   height: 0;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
-  border-top: 14px solid white;
+  border-top: 14px solid blue;
   transition: transform 0.3s ease;
 }
 #toggleDrawerBtn.arrow-up::before { transform: rotate(180deg); }
@@ -108,7 +109,8 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   top: 10px;
   right: 10px;
   z-index: 1002;
-  background: white;
+  //background: white;
+  background: rgba(255, 255, 255, 0.3);
   border: 1px solid #ccc;
   border-radius: 8px;
   width: 60px;
@@ -272,6 +274,20 @@ navigator.geolocation.watchPosition(pos=>{
 		map.setZoom(savedZoom);
 		zoomedIn = false;
 	  }
+
+      // --- Auto Follow toggle by distance ---
+      if (!following && nearest < 500) {
+        following = true;
+        const btn = document.querySelector('.followme-btn');
+        if (btn) btn.style.background = '#007bff';
+        console.log("Auto-follow ON (within 500m)");
+      } else if (following && nearest > 600) {
+        following = false;
+        const btn = document.querySelector('.followme-btn');
+        if (btn) btn.style.background = 'white';
+        console.log("Auto-follow OFF (beyond 600m)");
+      }
+
 	}
   }
 }, err=>console.warn(err), { enableHighAccuracy:true });
@@ -438,18 +454,11 @@ function startWakeLockMonitor() {
   enableWakeLock();
   setInterval(() => {
     if (!wakeLock) enableWakeLock();
-  }, 12000);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && !wakeLock) enableWakeLock();
-  });
+  }, 60000);
 }
 
-document.addEventListener('click', () => {
-  if (!wakeLock) {
-    startWakeLockMonitor();
-    console.log("Wake Lock monitor started after user interaction 🟢");
-  }
-}, { once: true });
+startWakeLockMonitor();
+
 </script>
 </body>
 </html>
