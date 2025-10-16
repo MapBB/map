@@ -160,7 +160,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
 <button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
 <button id="fullscreenBtn">⛶</button>
 <div id="positionBar">Waiting for GPS…</div>
-<audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
 
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -278,24 +278,31 @@ navigator.geolocation.watchPosition(pos=>{
 		zoomedIn = false;
 	  }
 
-            // --- Auto Follow toggle by distance + Sound alert ---
-      const alertSound = document.getElementById('alertSound');
+              // --- Auto Follow toggle by distance + Voice alert ---
       if (!following && nearest < 500) {
         following = true;
         const btn = document.querySelector('.followme-btn');
         if (btn) btn.style.background = '#007bff';
         console.log("Auto-follow ON (within 500m)");
-        // 🔊 Play alert sound once when within 500m
-        if (alertSound) {
-          alertSound.currentTime = 0;
-          alertSound.play().catch(err => console.warn("Audio play blocked:", err));
+
+        // 🗣️ Voice alert when within 500m
+        try {
+          const utter = new SpeechSynthesisUtterance("Three hundred meters ahead");
+          utter.lang = "en-GB"; // British English voice
+          utter.rate = 1.0;
+          window.speechSynthesis.cancel(); // stop any previous speech
+          window.speechSynthesis.speak(utter);
+        } catch (err) {
+          console.warn("Speech synthesis error:", err);
         }
+
       } else if (following && nearest > 600) {
         following = false;
         const btn = document.querySelector('.followme-btn');
         if (btn) btn.style.background = 'white';
         console.log("Auto-follow OFF (beyond 600m)");
       }
+
 
 
 	}
