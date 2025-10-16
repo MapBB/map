@@ -161,8 +161,6 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
 <button id="fullscreenBtn">⛶</button>
 <div id="positionBar">Waiting for GPS…</div>
 
-
-
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
 <script>
@@ -302,9 +300,6 @@ navigator.geolocation.watchPosition(pos=>{
         if (btn) btn.style.background = 'white';
         console.log("Auto-follow OFF (beyond 600m)");
       }
-
-
-
 	}
   }
 }, err=>console.warn(err), { enableHighAccuracy:true });
