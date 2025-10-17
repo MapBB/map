@@ -29,13 +29,13 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
 
 #drawer input[type="text"] {
   width: 100%;
-  padding: 10px;
-  font-size:12px;
+  padding: 12px;
+  font-size:14px;
   font-weight: bold;
   border-radius: 6px;
   border: 1px solid #ccc;
   box-sizing: border-box;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 #drawer .buttonRow { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -54,8 +54,8 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   display: flex;
   align-items: center;
   margin-top: 12px;
-  gap: 35px;
-  font-size: 12px;
+  gap: 40px;
+  font-size: 14px;
 }
 
 /* Drawer toggle button */
@@ -142,7 +142,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   <input type="text" id="coordsInput" placeholder="lat, lon">
   <div class="buttonRow">
     <button id="addMarkerBtn">Add Marker</button>
-    <button id="clearMarkersBtn">Delete Markers</button>
+    <button id="clearMarkersBtn">Clear All Markers</button>
     <button id="resetCounterBtn">Reset Numbering</button>
     <button id="openTextBtn">Text File Edit</button>
     <button id="chooseFileBtn">Load Route</button>
@@ -160,6 +160,8 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
 <button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
 <button id="fullscreenBtn">⛶</button>
 <div id="positionBar">Waiting for GPS…</div>
+
+
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
@@ -187,29 +189,47 @@ document.getElementById('fullscreenBtn').onclick = () => {
   else document.exitFullscreen();
 };
 
-// Follow Me button
+// Follow Me button (UPDATED so it always receives clicks even when markers/labels are present)
 let following = false;
 L.Control.FollowMe = L.Control.extend({
   onAdd: function(map) {
     const btn = L.DomUtil.create('button', 'leaflet-bar followme-btn');
     btn.innerHTML = '📍';
     btn.title = "Toggle Follow Me";
+
+    // Visual & interaction styling to ensure the button is clickable above markers/tooltips
     btn.style.background = 'white';
     btn.style.cursor = 'pointer';
     btn.style.width = '34px';
     btn.style.height = '34px';
     btn.style.fontSize = '18px';
     btn.style.lineHeight = '32px';
-    L.DomEvent.on(btn, 'click', e => {
+
+    // FIX: make sure the control is on top and accepts pointer events
+    btn.style.zIndex = '10003';           // above map layers/tooltips
+    btn.style.position = 'relative';
+    btn.style.pointerEvents = 'auto';
+
+    // Prevent map interactions from stealing the click; still allow propagation control
+    L.DomEvent.disableClickPropagation(btn);
+    L.DomEvent.disableScrollPropagation(btn);
+
+    // Support both mouse and touch toggles
+    function toggleFollow(e) {
       L.DomEvent.stopPropagation(e);
       following = !following;
       btn.style.background = following ? '#007bff' : 'white';
-    });
+    }
+
+    L.DomEvent.on(btn, 'click', toggleFollow);
+    L.DomEvent.on(btn, 'touchstart', toggleFollow); // mobile / touch support
+
     return btn;
   }
 });
 L.control.followMe = function(opts){ return new L.Control.FollowMe(opts); }
 L.control.followMe({position:'topleft'}).addTo(map);
+
 
 // GPS Marker
 let currentMarker = null;
@@ -300,6 +320,9 @@ navigator.geolocation.watchPosition(pos=>{
         if (btn) btn.style.background = 'white';
         console.log("Auto-follow OFF (beyond 600m)");
       }
+
+
+
 	}
   }
 }, err=>console.warn(err), { enableHighAccuracy:true });
