@@ -364,19 +364,29 @@ document.getElementById('exportWptBtn').addEventListener('click', ()=> {
   URL.revokeObjectURL(a.href);
 });
 
-// --- Load GPX file (still reads <trkpt>, can add <wpt> support later) ---
-document.getElementById('fileInput').setAttribute('accept', '.gpx');
-document.getElementById('fileInput').addEventListener('change', e => {
+// --- Load GPX file with last file memory ---
+const fileInput = document.getElementById('fileInput');
+const chooseFileBtn = document.getElementById('chooseFileBtn');
+let lastFileName = localStorage.getItem('lastGPXFileName') || '';
+
+chooseFileBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
+
+  localStorage.setItem('lastGPXFileName', file.name);
+
   const reader = new FileReader();
   reader.onload = event => {
     const text = event.target.result;
     const parser = new DOMParser();
     const xml = parser.parseFromString(text, "application/xml");
 
-    const trkpts = xml.getElementsByTagName('trkpt');
-    const wpts = xml.getElementsByTagName('wpt');
+    const ns = xml.documentElement.namespaceURI || null;
+    const wpts = ns ? xml.getElementsByTagNameNS(ns, 'wpt') : xml.getElementsByTagName('wpt');
+    const trkpts = ns ? xml.getElementsByTagNameNS(ns, 'trkpt') : xml.getElementsByTagName('trkpt');
+
     const points = [];
 
     function addPoints(nodes){
@@ -392,8 +402,8 @@ document.getElementById('fileInput').addEventListener('change', e => {
       }
     }
 
-    addPoints(trkpts);
     addPoints(wpts);
+    addPoints(trkpts);
 
     if (points.length > 0) map.fitBounds(L.latLngBounds(points), { padding: [50, 50] });
   };
@@ -425,9 +435,6 @@ document.getElementById('resetCounterBtn').addEventListener('click', ()=> {
 
 // Open Text Edit (unchanged placeholder)
 document.getElementById('openTextBtn').addEventListener('click', ()=> alert('Text File Edit Placeholder'));
-
-// File chooser
-document.getElementById('chooseFileBtn').addEventListener('click', ()=> document.getElementById('fileInput').click());
 
 // Double click toggle
 let dblClickDisabled=true;
