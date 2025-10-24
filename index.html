@@ -143,14 +143,15 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
     <button id="resetCounterBtn">Reset Numbering</button>
     <button id="openTextBtn">Text File Edit</button>
     <button id="chooseFileBtn">Load Route</button>
-	<button id="exportWptBtn">Export WPT</button>
+    <button id="exportWptBtn">Export WPT</button>
     <input type="file" id="fileInput" accept=".gpx" style="display:none;">
   </div>
   <div class="checkboxRow">
-  <label><input type="checkbox" id="keepOpenCheckbox"> Keep open after adding</label>
-  <label><input type="checkbox" id="freezeMapCheckbox"> Freeze map</label>
-  <label><input type="checkbox" id="dblClickCheckbox" checked> Disable double-click add</label>
-  <label><input type="checkbox" id="autoZoomCheckbox" checked> Enable Auto Zoom</label>
+    <label><input type="checkbox" id="keepOpenCheckbox"> Keep open after adding</label>
+    <label><input type="checkbox" id="freezeMapCheckbox"> Freeze map</label>
+    <label><input type="checkbox" id="dblClickCheckbox" checked> Disable double-click add</label>
+    <label><input type="checkbox" id="autoZoomCheckbox" checked> Enable Auto Zoom</label>
+  </div>
 </div>
 
 <button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
@@ -267,23 +268,6 @@ navigator.geolocation.watchPosition(pos=>{
     }
     if(firstFix){ map.setView([lat,lon],16); firstFix=false; }
     if(following) map.setView([lat,lon]);
-	if (autoZoomEnabled && userMarkers.length > 0) {
-	  let nearest = Infinity;
-	  for (const u of userMarkers) {
-		const dist = map.distance([lat, lon], u.marker.getLatLng());
-		if (dist < nearest) nearest = dist;
-	  }
-	  if (!zoomedIn && nearest < 500) {
-		savedZoom = map.getZoom();
-		map.setZoom(17);
-		zoomedIn = true;
-	  } else if (zoomedIn && nearest > 600) {
-		map.setZoom(savedZoom);
-		zoomedIn = false;
-	  }
-	  if (nearest <= 500 && !spoken500) { speak("300 Meters To Go"); spoken500 = true; }
-	  else if (nearest > 500) spoken500 = false;
-	}
   }
 }, err=>console.warn(err), { enableHighAccuracy:true });
 
@@ -302,13 +286,11 @@ function addNumberedMarker(lat, lon, num=null){
       <button onclick="deleteMarker(${userMarkers.length})">Delete</button>`);
 
   m.on('contextmenu', ()=> {
-    if(confirm('Delete this marker?')) {
-      map.removeLayer(m);
-      const idx = userMarkers.findIndex(obj=>obj.marker===m);
-      if(idx!==-1) userMarkers.splice(idx,1);
-      renumberMarkers();
-      m.unbindPopup();
-    }
+    map.removeLayer(m);
+    const idx = userMarkers.findIndex(obj=>obj.marker===m);
+    if(idx!==-1) userMarkers.splice(idx,1);
+    renumberMarkers();
+    m.unbindPopup();
   });
 
   m.on('dragend', ()=> {
@@ -366,14 +348,13 @@ document.getElementById('exportWptBtn').addEventListener('click', ()=> {
 
   let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   gpx += `<gpx version="1.1" creator="KC Map" xmlns="http://www.topografix.com/GPX/1/1">\n`;
-  gpx += `  <trk><name>Waypoints</name><trkseg>\n`;
 
   userMarkers.forEach(mObj => {
     const ll = mObj.marker.getLatLng();
-    gpx += `    <trkpt lat="${ll.lat.toFixed(6)}" lon="${ll.lng.toFixed(6)}"><name>${mObj.number}</name></trkpt>\n`;
+    gpx += `  <wpt lat="${ll.lat.toFixed(6)}" lon="${ll.lng.toFixed(6)}"><name>${mObj.number}</name></wpt>\n`;
   });
 
-  gpx += `  </trkseg></trk>\n</gpx>`;
+  gpx += `</gpx>`;
 
   const blob = new Blob([gpx], { type: "application/gpx+xml" });
   const a = document.createElement('a');
@@ -383,9 +364,8 @@ document.getElementById('exportWptBtn').addEventListener('click', ()=> {
   URL.revokeObjectURL(a.href);
 });
 
-// --- Load GPX file ---
+// --- Load GPX file (still reads <trkpt>, can add <wpt> support later) ---
 document.getElementById('fileInput').setAttribute('accept', '.gpx');
-
 document.getElementById('fileInput').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
@@ -394,20 +374,26 @@ document.getElementById('fileInput').addEventListener('change', e => {
     const text = event.target.result;
     const parser = new DOMParser();
     const xml = parser.parseFromString(text, "application/xml");
+
     const trkpts = xml.getElementsByTagName('trkpt');
+    const wpts = xml.getElementsByTagName('wpt');
     const points = [];
 
-    for (let i = 0; i < trkpts.length; i++) {
-      const lat = parseFloat(trkpts[i].getAttribute('lat'));
-      const lon = parseFloat(trkpts[i].getAttribute('lon'));
-      const nameTag = trkpts[i].getElementsByTagName('name')[0];
-      const num = nameTag ? parseInt(nameTag.textContent) : i + 1;
-
-      if (!isNaN(lat) && !isNaN(lon)) {
-        addNumberedMarker(lat, lon, num);
-        points.push([lat, lon]);
+    function addPoints(nodes){
+      for (let i = 0; i < nodes.length; i++) {
+        const lat = parseFloat(nodes[i].getAttribute('lat'));
+        const lon = parseFloat(nodes[i].getAttribute('lon'));
+        const nameTag = nodes[i].getElementsByTagName('name')[0];
+        const num = nameTag ? parseInt(nameTag.textContent) : i + 1;
+        if (!isNaN(lat) && !isNaN(lon)) {
+          addNumberedMarker(lat, lon, num);
+          points.push([lat, lon]);
+        }
       }
     }
+
+    addPoints(trkpts);
+    addPoints(wpts);
 
     if (points.length > 0) map.fitBounds(L.latLngBounds(points), { padding: [50, 50] });
   };
@@ -450,7 +436,6 @@ document.getElementById('dblClickCheckbox').addEventListener('change', e=>{
   if(dblClickDisabled) map.off('dblclick'); else map.on('dblclick', e=>addNumberedMarker(e.latlng.lat, e.latlng.lng));
 });
 if(!dblClickDisabled) map.on('dblclick', e=>addNumberedMarker(e.latlng.lat, e.latlng.lng));
-
 </script>
 </body>
 </html>
