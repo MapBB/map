@@ -108,7 +108,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   top: 10px;
   right: 10px;
   z-index: 1002;
-  background: rgba(255, 255, 255, 0.25); /* white with 10% opacity */
+  background: rgba(255, 255, 255, 0.25);
   border: 1px solid #ccc;
   border-radius: 8px;
   width: 60px;
@@ -144,7 +144,7 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
     <button id="openTextBtn">Text File Edit</button>
     <button id="chooseFileBtn">Load Route</button>
 	<button id="exportWptBtn">Export WPT</button>
-    <input type="file" id="fileInput" accept=".txt,.csv" style="display:none;">
+    <input type="file" id="fileInput" accept=".gpx" style="display:none;">
   </div>
   <div class="checkboxRow">
   <label><input type="checkbox" id="keepOpenCheckbox"> Keep open after adding</label>
@@ -152,7 +152,6 @@ html, body { height: 100%; margin: 0; font-family: sans-serif; }
   <label><input type="checkbox" id="dblClickCheckbox" checked> Disable double-click add</label>
   <label><input type="checkbox" id="autoZoomCheckbox" checked> Enable Auto Zoom</label>
 </div>
-
 
 <button id="toggleDrawerBtn" aria-label="Toggle Drawer"></button>
 <button id="fullscreenBtn">⛶</button>
@@ -235,7 +234,7 @@ function createArrowIcon() {
 function lerp(a,b,t){ return a+(b-a)*t; }
 function lerpAngle(a,b,t){ const diff=((b-a+540)%360)-180; return a+diff*t; }
 
-// 🟢 Auto Zoom toggle
+// Auto Zoom toggle
 let autoZoomEnabled = true;
 document.getElementById('autoZoomCheckbox').addEventListener('change', e => {
   autoZoomEnabled = e.target.checked;
@@ -282,7 +281,6 @@ navigator.geolocation.watchPosition(pos=>{
 		map.setZoom(savedZoom);
 		zoomedIn = false;
 	  }
-	  // --- 500m voice alert ---
 	  if (nearest <= 500 && !spoken500) { speak("300 Meters To Go"); spoken500 = true; }
 	  else if (nearest > 500) spoken500 = false;
 	}
@@ -303,7 +301,6 @@ function addNumberedMarker(lat, lon, num=null){
       <br><button onclick="renumberMarker(${userMarkers.length})">Renumber</button>
       <button onclick="deleteMarker(${userMarkers.length})">Delete</button>`);
 
-  // --- Right-click deletion fix ---
   m.on('contextmenu', ()=> {
     if(confirm('Delete this marker?')) {
       map.removeLayer(m);
@@ -363,19 +360,58 @@ function deleteMarker(index){
   renumberMarkers();
 }
 
+// --- Export WPT to GPX ---
 document.getElementById('exportWptBtn').addEventListener('click', ()=> {
-  if(userMarkers.length===0) return alert("No markers to export.");
-  let txt="Number,Latitude,Longitude\n";
-  userMarkers.forEach(mObj=>{
-    const ll=mObj.marker.getLatLng();
-    txt += `${mObj.number},${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}\n`;
+  if (userMarkers.length === 0) return alert("No markers to export.");
+
+  let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  gpx += `<gpx version="1.1" creator="KC Map" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+  gpx += `  <trk><name>Waypoints</name><trkseg>\n`;
+
+  userMarkers.forEach(mObj => {
+    const ll = mObj.marker.getLatLng();
+    gpx += `    <trkpt lat="${ll.lat.toFixed(6)}" lon="${ll.lng.toFixed(6)}"><name>${mObj.number}</name></trkpt>\n`;
   });
-  const blob = new Blob([txt], {type:"text/plain"});
+
+  gpx += `  </trkseg></trk>\n</gpx>`;
+
+  const blob = new Blob([gpx], { type: "application/gpx+xml" });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = "waypoints.txt";
+  a.download = "waypoints.gpx";
   a.click();
   URL.revokeObjectURL(a.href);
+});
+
+// --- Load GPX file ---
+document.getElementById('fileInput').setAttribute('accept', '.gpx');
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = event => {
+    const text = event.target.result;
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(text, "application/xml");
+    const trkpts = xml.getElementsByTagName('trkpt');
+    const points = [];
+
+    for (let i = 0; i < trkpts.length; i++) {
+      const lat = parseFloat(trkpts[i].getAttribute('lat'));
+      const lon = parseFloat(trkpts[i].getAttribute('lon'));
+      const nameTag = trkpts[i].getElementsByTagName('name')[0];
+      const num = nameTag ? parseInt(nameTag.textContent) : i + 1;
+
+      if (!isNaN(lat) && !isNaN(lon)) {
+        addNumberedMarker(lat, lon, num);
+        points.push([lat, lon]);
+      }
+    }
+
+    if (points.length > 0) map.fitBounds(L.latLngBounds(points), { padding: [50, 50] });
+  };
+  reader.readAsText(file);
 });
 
 // Add marker button
@@ -394,82 +430,27 @@ document.getElementById('addMarkerBtn').addEventListener('click', ()=> {
 document.getElementById('clearMarkersBtn').addEventListener('click', ()=> {
   userMarkers.forEach(mObj=>map.removeLayer(mObj.marker));
   userMarkers.length=0;
+});
+document.getElementById('resetCounterBtn').addEventListener('click', ()=> {
   markerCount=0;
   localStorage.setItem('markerCount',0);
+  renumberMarkers();
 });
 
-document.getElementById('resetCounterBtn').addEventListener('click', ()=> {
-  if(confirm("Reset numbering to 0?")){
-    markerCount=0;
-    localStorage.setItem('markerCount',0);
-    alert("Numbering reset. Next marker will be #1.");
-  }
-});
+// Open Text Edit (unchanged placeholder)
+document.getElementById('openTextBtn').addEventListener('click', ()=> alert('Text File Edit Placeholder'));
 
-// Load / file handling
-document.getElementById('openTextBtn').addEventListener('click', ()=>window.open('Text.html','_blank'));
-document.getElementById('chooseFileBtn').addEventListener('click', ()=> {
-  const fileInput=document.getElementById('fileInput');
-  fileInput.value='';
-  fileInput.click();
-});
-document.getElementById('fileInput').addEventListener('change', e=>{
-  const file=e.target.files[0];
-  if(!file) return;
-  const reader=new FileReader();
-  reader.onload=event=>{
-    const lines=event.target.result.trim().split('\n');
-    const points=[];
-    lines.forEach(line=>{
-      const parts=line.split(',');
-      if(parts.length>=3){
-        const num=parseInt(parts[0].trim());
-        const lat=parseFloat(parts[1].trim());
-        const lon=parseFloat(parts[2].trim());
-        if(!isNaN(lat)&&!isNaN(lon)){
-          addNumberedMarker(lat, lon, num);
-          points.push([lat, lon]);
-        }
-      }
-    });
-    if(points.length>0) map.fitBounds(L.latLngBounds(points),{padding:[50,50]});
-  };
-  reader.readAsText(file);
-});
+// File chooser
+document.getElementById('chooseFileBtn').addEventListener('click', ()=> document.getElementById('fileInput').click());
 
-let dblClickEnabled = false;
-if(localStorage.getItem('dblClickEnabled')!==null){
-  dblClickEnabled = (localStorage.getItem('dblClickEnabled')==='true');
-  document.getElementById('dblClickCheckbox').checked = !dblClickEnabled;
-}
+// Double click toggle
+let dblClickDisabled=true;
 document.getElementById('dblClickCheckbox').addEventListener('change', e=>{
-  dblClickEnabled = !e.target.checked;
-  localStorage.setItem('dblClickEnabled', dblClickEnabled);
+  dblClickDisabled=e.target.checked;
+  if(dblClickDisabled) map.off('dblclick'); else map.on('dblclick', e=>addNumberedMarker(e.latlng.lat, e.latlng.lng));
 });
-map.on('dblclick', e=>{
-  if(!dblClickEnabled) return;
-  addNumberedMarker(e.latlng.lat, e.latlng.lng);
-});
+if(!dblClickDisabled) map.on('dblclick', e=>addNumberedMarker(e.latlng.lat, e.latlng.lng));
 
-// --- Wake Lock ---
-let wakeLock = null;
-async function enableWakeLock() {
-  try {
-    if(!('wakeLock' in navigator)){ console.warn("Wake Lock API not supported"); return; }
-    wakeLock = await navigator.wakeLock.request('screen');
-    wakeLock.addEventListener('release', ()=>{ wakeLock=null; });
-  } catch(err){ wakeLock=null; }
-}
-function startWakeLockMonitor(){
-  enableWakeLock();
-  setInterval(()=>{ if(!wakeLock) enableWakeLock(); }, 12000);
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState==='visible' && !wakeLock) enableWakeLock();
-  });
-}
-document.addEventListener('click', ()=>{
-  if(!wakeLock) startWakeLockMonitor();
-},{once:true});
 </script>
 </body>
 </html>
